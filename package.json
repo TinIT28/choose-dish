@@ -1,17 +1,26 @@
 {
   "name": "choose-dish",
   "private": true,
-  "packageManager": "pnpm@11.19.0",
+  "packageManager": "bun@1.3.0",
+  "workspaces": ["apps/*"],
   "scripts": {
-    "dev": "pnpm --parallel --filter @choose-dish/web --filter @choose-dish/api dev",
-    "build": "pnpm -r build",
-    "test": "pnpm -r test",
-    "typecheck": "pnpm -r typecheck",
-    "lint": "pnpm -r lint",
-    "db:generate": "pnpm --filter @choose-dish/api db:generate",
-    "db:migrate": "pnpm --filter @choose-dish/api db:migrate",
+    "dev": "bun --workspaces run dev",
+    "build": "bun --workspaces run build",
+    "test": "bun --workspaces run test",
+    "typecheck": "bun --workspaces run typecheck",
+    "lint": "bun --workspaces run lint",
+    "db:generate": "bun run --cwd apps/api db:generate",
+    "db:migrate": "bun run --cwd apps/api db:migrate",
     "test:e2e": "playwright test"
   },
+  "trustedDependencies": [
+    "@prisma/client",
+    "@prisma/engines",
+    "argon2",
+    "core-js",
+    "esbuild",
+    "prisma"
+  ],
   "devDependencies": {
     "@eslint/js": "^9.28.0",
     "@playwright/test": "^1.53.0",

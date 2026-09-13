@@ -4,9 +4,9 @@
 
 **Goal:** Implement the approved Choose Dish MVP as a Vietnamese React/Rsbuild and NestJS application with account sessions, private/shared dishes, random meal selections, retention-controlled history, and Vercel deployment configuration.
 
-**Architecture:** Use a pnpm workspace with `apps/web` and `apps/api`. The web app owns UI and client state; the NestJS API owns authorization, selection rules, Prisma persistence, and Cloudinary signing. Runtime data is stored in Neon PostgreSQL, refresh sessions are database-backed, and retention cleanup runs through a protected Vercel Cron endpoint.
+**Architecture:** Use a Bun workspace with `apps/web` and `apps/api`. The web app owns UI and client state; the NestJS API owns authorization, selection rules, Prisma persistence, and Cloudinary signing. Runtime data is stored in Neon PostgreSQL, refresh sessions are database-backed, and retention cleanup runs through a protected Vercel Cron endpoint.
 
-**Tech Stack:** Node.js 22, pnpm 11, React, Rsbuild, TypeScript, React Router, TanStack Query, Tailwind CSS, shadcn/ui, Radix UI, React Hook Form, Zod, NestJS, Prisma, PostgreSQL/Neon, Cloudinary, Vitest, Testing Library, and Playwright.
+**Tech Stack:** Node.js 22, Bun 1.3+, React, Rsbuild, TypeScript, React Router, TanStack Query, Tailwind CSS, shadcn/ui, Radix UI, React Hook Form, Zod, NestJS, Prisma, PostgreSQL/Neon, Cloudinary, Vitest, Testing Library, and Playwright.
 
 **Spec:** `docs/superpowers/specs/2026-09-13-choose-dish-design.md`
 
@@ -28,7 +28,7 @@
 ### Task 1: Bootable workspace and engineering baseline
 
 **Files:**
-- Create: `package.json`, `pnpm-workspace.yaml`, `.gitignore`, `.env.example`
+- Create: `package.json` with Bun workspaces, `.gitignore`, `.env.example`
 - Create: `apps/web/package.json`, `apps/web/rsbuild.config.ts`, `apps/web/tsconfig.json`, `apps/web/index.html`, `apps/web/postcss.config.mjs`, `apps/web/src/main.tsx`, `apps/web/src/app/App.tsx`, `apps/web/src/app/app.css`, `apps/web/src/lib/utils.ts`, `apps/web/src/components/ui/button.tsx`, `apps/web/src/components/ui/card.tsx`
 - Create: `apps/api/package.json`, `apps/api/nest-cli.json`, `apps/api/tsconfig.json`, `apps/api/src/main.ts`, `apps/api/src/app.module.ts`, `apps/api/src/health/health.controller.ts`
 - Create: `apps/api/src/health/health.controller.spec.ts`, `apps/web/src/app/App.test.tsx`
@@ -38,11 +38,11 @@
 - Produces root scripts `dev`, `build`, `test`, `typecheck`, `lint`, `db:generate`, and `db:migrate`.
 
 - [ ] **Step 1: Write the failing API health test.** Assert that a request to `/api/v1/health` returns HTTP 200 and the stable JSON keys through the Nest testing module.
-- [ ] **Step 2: Run the focused test to verify it fails.** Run `pnpm --filter api test -- health.controller.spec.ts`; expect failure because the workspace and controller do not exist.
-- [ ] **Step 3: Scaffold the workspace and minimal applications.** Configure pnpm workspace scripts, Rsbuild, Tailwind CSS, local shadcn/ui primitives, NestJS, TypeScript, Vitest, environment loading, and a Prisma client placeholder without embedding secrets.
+- [ ] **Step 2: Run the focused test to verify it fails.** Run `bun --filter @choose-dish/api run test -- health.controller.spec.ts`; expect failure because the workspace and controller do not exist.
+- [ ] **Step 3: Scaffold the workspace and minimal applications.** Configure Bun workspace scripts, Rsbuild, Tailwind CSS, local shadcn/ui primitives, NestJS, TypeScript, Vitest, environment loading, and a Prisma client placeholder without embedding secrets.
 - [ ] **Step 4: Implement the health seam.** Add a health service that performs a lightweight Prisma query and maps connection failure to a non-200 health response while keeping the endpoint under `/api/v1`.
-- [ ] **Step 5: Run focused tests and typechecks.** Run `pnpm --filter api test -- health.controller.spec.ts`, `pnpm --filter web test -- App.test.tsx`, and `pnpm typecheck`; expect all to pass.
-- [ ] **Step 6: Commit the foundation.** Run `git add package.json pnpm-workspace.yaml .gitignore .env.example apps docs/agents AGENTS.md .scratch/choose-dish` and commit `feat: bootstrap choose dish workspace`.
+- [ ] **Step 5: Run focused tests and typechecks.** Run `bun --filter @choose-dish/api run test -- health.controller.spec.ts`, `bun --filter @choose-dish/web run test -- App.test.tsx`, and `bun run typecheck`; expect all to pass.
+- [ ] **Step 6: Commit the foundation.** Run `git add package.json .gitignore .env.example apps docs/agents AGENTS.md .scratch/choose-dish` and commit `feat: bootstrap choose dish workspace`.
 
 ### Task 2: Registration, login, and device sessions
 
@@ -60,11 +60,11 @@
 - `AuthProvider` exposes `{ user, accessToken, login, register, logout, refresh }` to protected routes.
 
 - [ ] **Step 1: Write failing auth tests.** Cover first-user admin bootstrap, later-user role assignment, invalid credentials, refresh rotation, current-session logout, and logout-all through the auth service/controller seams.
-- [ ] **Step 2: Run the focused tests to verify they fail.** Run `pnpm --filter api test -- auth.service.spec.ts`; expect missing schema and service failures.
+- [ ] **Step 2: Run the focused tests to verify they fail.** Run `bun --filter @choose-dish/api run test -- auth.service.spec.ts`; expect missing schema and service failures.
 - [ ] **Step 3: Add the Prisma user/session schema and migration.** Define `User`, `Session`, `Role`, `historyRetentionDays`, and timezone fields; configure Argon2id password hashing and hashed refresh tokens.
 - [ ] **Step 4: Implement auth endpoints and guards.** Make the first-registration role check atomic, rotate refresh tokens, reject reuse by revoking the session, and enforce bearer-token authentication in protected routes.
 - [ ] **Step 5: Add the web auth flow.** Keep access tokens in memory, send refresh requests with credentials, retry one failed request after refresh, and render Vietnamese login/register/protected-route states.
-- [ ] **Step 6: Run focused tests, migrations, and typechecks.** Run the auth test files, `pnpm --filter api exec prisma validate`, and `pnpm typecheck`; expect all to pass with a configured non-production database.
+- [ ] **Step 6: Run focused tests, migrations, and typechecks.** Run the auth test files, `bun --filter @choose-dish/api exec prisma validate`, and `bun run typecheck`; expect all to pass with a configured non-production database.
 - [ ] **Step 7: Commit authentication.** Run `git add apps/api apps/web` and commit `feat: add account authentication and sessions`.
 
 ### Task 3: Private dish catalog and Cloudinary upload
@@ -82,11 +82,11 @@
 - `GET/POST/PATCH/DELETE /api/v1/dishes` manage only the authenticated user's private dishes.
 
 - [ ] **Step 1: Write the failing private-dish API tests.** Assert ownership filtering, required image validation, create/update, soft-delete, and rejection of another user's dish ID.
-- [ ] **Step 2: Run the focused tests to verify they fail.** Run `pnpm --filter api test -- dishes.service.spec.ts`; expect missing Dish model and endpoints.
+- [ ] **Step 2: Run the focused tests to verify they fail.** Run `bun --filter @choose-dish/api run test -- dishes.service.spec.ts`; expect missing Dish model and endpoints.
 - [ ] **Step 3: Add the Dish schema and Cloudinary adapter seam.** Store URL plus public ID, validate JPG/PNG/WebP and 5 MB constraints, and expose a mockable image-storage interface.
 - [ ] **Step 4: Implement private dish CRUD and signed uploads.** Use authenticated ownership checks, preserve historical references on soft-delete, and remove newly uploaded assets if persistence fails.
 - [ ] **Step 5: Add the Vietnamese dish-management UI.** Support required image upload, progress/error/retry states, create/edit forms, active list, and soft-delete confirmation using React Hook Form, Zod, Tailwind CSS, and shadcn/ui field/card primitives.
-- [ ] **Step 6: Run focused tests and typechecks.** Run API service/integration tests, `pnpm --filter web test -- DishForm.test.tsx`, and `pnpm typecheck`.
+- [ ] **Step 6: Run focused tests and typechecks.** Run API service/integration tests, `bun --filter @choose-dish/web run test -- DishForm.test.tsx`, and `bun run typecheck`.
 - [ ] **Step 7: Commit the private catalog.** Run `git add apps/api apps/web` and commit `feat: add private dish catalog`.
 
 ### Task 4: Shared dishes, copy, exclusions, and admin operations
@@ -105,11 +105,11 @@
 - `POST/DELETE /api/v1/dishes/:id/exclusion` manages a user's personal exclusion.
 
 - [ ] **Step 1: Write failing authorization and copy tests.** Cover admin-only shared CRUD, normal-user denial, copy independence, personal exclusion isolation, and manual password reset.
-- [ ] **Step 2: Run the focused tests to verify they fail.** Run `pnpm --filter api test -- admin.service.spec.ts shared-dishes.integration.spec.ts`; expect missing role and exclusion behavior.
+- [ ] **Step 2: Run the focused tests to verify they fail.** Run `bun --filter @choose-dish/api run test -- admin.service.spec.ts shared-dishes.integration.spec.ts`; expect missing role and exclusion behavior.
 - [ ] **Step 3: Add shared-dish and exclusion persistence.** Make shared `ownerId` nullable, retain shared dishes when an admin account is deleted, and enforce role guards in the API.
 - [ ] **Step 4: Implement admin, copy, and exclusion behavior.** Copy dish fields into a new private row, make exclusions user-scoped, and ensure admin password reset never returns private data.
 - [ ] **Step 5: Add the admin/shared-dish UI.** Render admin-only controls, shared catalog, copy action, personal hide/unhide action, and reset-password form.
-- [ ] **Step 6: Run focused tests and typechecks.** Run the API tests, UI tests, and `pnpm typecheck`.
+- [ ] **Step 6: Run focused tests and typechecks.** Run the API tests, UI tests, and `bun run typecheck`.
 - [ ] **Step 7: Commit shared catalog operations.** Run `git add apps/api apps/web` and commit `feat: add shared dishes and exclusions`.
 
 ### Task 5: Daily selection and dashboard
@@ -127,11 +127,11 @@
 - `SelectionRules.getCandidates(userId, mealPeriod, now)` returns accessible, active, non-excluded Dish IDs after the seven-day filter.
 
 - [ ] **Step 1: Write failing rule tests.** Use fixed instants/timezones to verify current-day cross-meal exclusions, previous-six-date exclusions, uniform candidate selection, oldest-dish fallback, and empty-catalog error.
-- [ ] **Step 2: Run the rule tests to verify they fail.** Run `pnpm --filter api test -- selection-rules.spec.ts`; expect missing rule module and Selection model.
+- [ ] **Step 2: Run the rule tests to verify they fail.** Run `bun --filter @choose-dish/api run test -- selection-rules.spec.ts`; expect missing rule module and Selection model.
 - [ ] **Step 3: Add Selection schema and pure selection rules.** Use explicit `MealPeriod`, calculate `localDate` from the user's IANA timezone, and keep candidate selection independent from HTTP.
 - [ ] **Step 4: Implement transactional random selection.** Combine private/shared pools, apply exclusions and fallback, then upsert the unique row with name snapshot and UTC timestamp.
 - [ ] **Step 5: Add the three-card dashboard.** Load today's selections, invoke random immediately, show selection time in the user's timezone, and render empty/error/loading states in Vietnamese with Tailwind CSS and shadcn/ui cards/buttons.
-- [ ] **Step 6: Run focused tests and typechecks.** Run rule/integration tests, `pnpm --filter web test -- MealPeriodCard.test.tsx`, and `pnpm typecheck`.
+- [ ] **Step 6: Run focused tests and typechecks.** Run rule/integration tests, `bun --filter @choose-dish/web run test -- MealPeriodCard.test.tsx`, and `bun run typecheck`.
 - [ ] **Step 7: Commit daily selection.** Run `git add apps/api apps/web` and commit `feat: add daily meal selection`.
 
 ### Task 6: Settings, sessions, and account lifecycle
@@ -148,11 +148,11 @@
 - `DELETE /api/v1/users/me` deletes private user data and refuses to remove the last admin.
 
 - [ ] **Step 1: Write failing settings/lifecycle tests.** Cover invalid timezone, retention presets, session revocation, cascading private-data deletion, and last-admin protection.
-- [ ] **Step 2: Run focused tests to verify they fail.** Run `pnpm --filter api test -- users.service.spec.ts`; expect missing settings and lifecycle behavior.
+- [ ] **Step 2: Run focused tests to verify they fail.** Run `bun --filter @choose-dish/api run test -- users.service.spec.ts`; expect missing settings and lifecycle behavior.
 - [ ] **Step 3: Implement validated settings and session endpoints.** Validate IANA timezone identifiers, enforce retention presets, and revoke sessions before deletion.
 - [ ] **Step 4: Implement account deletion safeguards.** Delete private dishes, exclusions, selections, and sessions; preserve shared dishes; refuse deletion when no other admin exists.
 - [ ] **Step 5: Add the settings UI.** Provide timezone, retention, session revoke, logout-all, and account-deletion flows with explicit confirmation.
-- [ ] **Step 6: Run focused tests and typechecks.** Run service/UI tests and `pnpm typecheck`.
+- [ ] **Step 6: Run focused tests and typechecks.** Run service/UI tests and `bun run typecheck`.
 - [ ] **Step 7: Commit settings and lifecycle.** Run `git add apps/api apps/web` and commit `feat: add user settings and account lifecycle`.
 
 ### Task 7: History view and retention cleanup
@@ -169,11 +169,11 @@
 - `GET /api/v1/internal/retention` accepts only `Authorization: Bearer $CRON_SECRET` and deletes expired selections idempotently.
 
 - [ ] **Step 1: Write failing history/retention tests.** Cover local-date grouping, snapshot names after dish edits, default/preset retention, deletion boundaries, and unauthorized cron calls.
-- [ ] **Step 2: Run focused tests to verify they fail.** Run `pnpm --filter api test -- history.service.spec.ts retention.service.spec.ts`; expect missing services.
+- [ ] **Step 2: Run focused tests to verify they fail.** Run `bun --filter @choose-dish/api run test -- history.service.spec.ts retention.service.spec.ts`; expect missing services.
 - [ ] **Step 3: Implement read-only history and retention service.** Query by user and local date, use snapshots, and delete only expired Selection rows per user.
 - [ ] **Step 4: Add the protected cron endpoint.** Configure the API project to route the daily Vercel Cron request and compare the Bearer secret before cleanup.
 - [ ] **Step 5: Add the history timeline UI.** Group by local date, show breakfast/lunch/dinner and exact selection time, and expose the configured range.
-- [ ] **Step 6: Run focused tests and typechecks.** Run API/UI tests and `pnpm typecheck`.
+- [ ] **Step 6: Run focused tests and typechecks.** Run API/UI tests and `bun run typecheck`.
 - [ ] **Step 7: Commit history and cleanup.** Run `git add apps/api apps/web` and commit `feat: add selection history and retention cleanup`.
 
 ### Task 8: Vercel, Neon, Cloudinary, and release verification
@@ -190,9 +190,9 @@
 - The web project receives the public API base URL as a public environment variable.
 
 - [ ] **Step 1: Write failing environment and smoke tests.** Assert missing secrets fail fast and the Playwright flow can register, create a dish, randomize a meal period, view history, and logout.
-- [ ] **Step 2: Run the focused tests to verify they fail.** Run `pnpm test:e2e -- tests/e2e/choose-dish.spec.ts`; expect missing deployment configuration and applications.
+- [ ] **Step 2: Run the focused tests to verify they fail.** Run `bun run test:e2e -- tests/e2e/choose-dish.spec.ts`; expect missing deployment configuration and applications.
 - [ ] **Step 3: Add environment validation and Vercel project configuration.** Set project roots/build commands, exclude secrets, configure API Node runtime, and add the production Cron schedule.
 - [ ] **Step 4: Configure Neon/Prisma deployment behavior.** Use pooled `DATABASE_URL` for runtime and direct `DIRECT_URL` for migrations; document preview versus production variables and migration commands.
 - [ ] **Step 5: Configure secure browser/API integration.** Set exact-origin CORS, credentialed requests, secure refresh cookies, Cloudinary production values, and Cron secret validation.
-- [ ] **Step 6: Run the full verification suite.** Run `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, and `pnpm test:e2e`; record exit codes and test counts.
+- [ ] **Step 6: Run the full verification suite.** Run `bun run lint`, `bun run typecheck`, `bun run test`, `bun run build`, and `bun run test:e2e`; record exit codes and test counts.
 - [ ] **Step 7: Commit release configuration.** Run `git add .` after reviewing the staged file list and commit `chore: configure Vercel release`.

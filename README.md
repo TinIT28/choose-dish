@@ -11,13 +11,13 @@
 
 ## Chạy local
 
-1. Cài Node.js 22 và pnpm 11.
+1. Cài Node.js 22 và Bun 1.3+.
 2. Tạo `.env` từ `.env.example`, điền `DATABASE_URL` và `DIRECT_URL` của Neon.
-3. Chạy `pnpm install`.
-4. Chạy `pnpm db:generate` và `pnpm db:migrate`.
-5. Chạy `pnpm dev`. Web chạy ở `http://localhost:3000`, API ở `http://localhost:3001`.
+3. Chạy `bun install`.
+4. Chạy `bun run db:generate` và `bun run db:migrate`.
+5. Chạy `bun run dev`. Web chạy ở `http://localhost:3000`, API ở `http://localhost:3001`.
 
-Các lệnh kiểm tra: `pnpm test`, `pnpm typecheck`, `pnpm lint`, `pnpm build`.
+Các lệnh kiểm tra: `bun run test`, `bun run typecheck`, `bun run lint`, `bun run build`.
 
 ## Deploy Vercel
 

@@ -34,7 +34,7 @@ Build a Vietnamese, responsive website that lets an authenticated user manage pr
 
 ## Architecture
 
-The repository is a pnpm workspace monorepo with two independently deployable applications:
+The repository is a Bun workspace monorepo with two independently deployable applications:
 
 ```text
 choose-dish/
@@ -46,7 +46,7 @@ choose-dish/
 │   └── superpowers/specs/
 ├── CONTEXT.md
 ├── package.json
-└── pnpm-workspace.yaml
+└── package.json (Bun workspaces)
 ```
 
 `apps/web` owns rendering, navigation, forms, client-side session state, and API calls. `apps/api` is the only application boundary for authentication, authorization, business rules, Neon access, and Cloudinary signing. The API exposes REST JSON endpoints under `/api/v1`.

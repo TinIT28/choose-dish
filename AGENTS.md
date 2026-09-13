@@ -2,6 +2,10 @@
 
 Read `CONTEXT.md` and the relevant ADRs before changing domain behaviour. Keep frontend and backend boundaries explicit, and run the focused tests before the full verification suite.
 
+## Tooling
+
+Use Bun 1.3+ as the package manager. Prefer `bun install`, `bun run <script>`, and `bun --filter <workspace> run <script>` for workspace commands.
+
 ## Agent skills
 
 ### Issue tracker
