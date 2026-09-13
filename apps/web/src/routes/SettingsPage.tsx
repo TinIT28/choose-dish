@@ -1,12 +1,15 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link } from 'react-router-dom';
 import { z } from 'zod';
 import { Button } from '../components/ui/button';
+import { AppHeader } from '../components/AppHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { useAuth } from '../features/auth/AuthProvider';
 import { deleteAccount, updateSettings } from '../features/settings/api';
+import { queryKeys } from '../features/queryKeys';
 import { RetentionSetting } from '../features/settings/RetentionSetting';
 import { SessionList } from '../features/settings/SessionList';
 import { TimezoneSetting } from '../features/settings/TimezoneSetting';
@@ -18,7 +21,8 @@ const settingsSchema = z.object({
 type SettingsValues = z.infer<typeof settingsSchema>;
 
 export function SettingsPage() {
-  const { accessToken, user, logout } = useAuth();
+  const { accessToken, user, logout, refresh } = useAuth();
+  const queryClient = useQueryClient();
   const [message, setMessage] = useState<string | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
   const { handleSubmit, reset, setValue, watch, formState: { isSubmitting } } = useForm<SettingsValues>({
@@ -27,6 +31,23 @@ export function SettingsPage() {
   });
   const timezone = watch('timezone');
   const historyRetentionDays = watch('historyRetentionDays');
+  const updateSettingsMutation = useMutation({
+    mutationFn: (values: SettingsValues) => {
+      if (!accessToken) throw new Error('Bạn cần đăng nhập để lưu cài đặt.');
+      return updateSettings(accessToken, values);
+    },
+    onSuccess: async () => {
+      await refresh();
+      if (user) await queryClient.invalidateQueries({ queryKey: queryKeys.history(user.id) });
+    },
+  });
+  const deleteAccountMutation = useMutation({
+    mutationFn: () => {
+      if (!accessToken) throw new Error('Bạn cần đăng nhập để xóa tài khoản.');
+      return deleteAccount(accessToken);
+    },
+    onSuccess: () => logout(),
+  });
 
   useEffect(() => {
     if (user) {
@@ -44,7 +65,7 @@ export function SettingsPage() {
     setMessage(null);
     setServerError(null);
     try {
-      await updateSettings(token, values);
+      await updateSettingsMutation.mutateAsync(values);
       setMessage('Đã lưu cài đặt.');
     } catch (error) {
       setServerError(error instanceof Error ? error.message : 'Không thể lưu cài đặt.');
@@ -54,21 +75,21 @@ export function SettingsPage() {
   async function removeAccount() {
     if (!window.confirm('Xóa tài khoản và toàn bộ dữ liệu riêng? Thao tác này không thể hoàn tác.')) return;
     try {
-      await deleteAccount(token);
-      await logout();
+      await deleteAccountMutation.mutateAsync();
     } catch (error) {
       setServerError(error instanceof Error ? error.message : 'Không thể xóa tài khoản.');
     }
   }
 
   return (
-    <main className="mx-auto min-h-screen max-w-3xl px-5 py-10 sm:px-8 sm:py-16">
-      <header className="mb-8 flex items-end justify-between gap-4">
+    <div className="min-h-screen">
+      <AppHeader user={{ email: user.email }} isAdmin={user.role === 'ADMIN'} onLogout={logout} />
+      <main className="mx-auto max-w-3xl px-5 pb-16 pt-8 sm:px-8 sm:pt-12">
+      <header className="mb-10">
         <div>
           <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.18em] text-[#c76d3e]">Cài đặt</p>
-          <h1 className="font-serif text-5xl font-medium tracking-[-0.05em]">Tài khoản</h1>
+          <h1 className="font-serif text-5xl font-medium tracking-[-0.05em] sm:text-6xl">Tài khoản</h1>
         </div>
-        <Button asChild variant="outline"><Link to="/">Trang chủ</Link></Button>
       </header>
       <div className="space-y-6">
         <Card>
@@ -77,23 +98,24 @@ export function SettingsPage() {
             <form className="space-y-5" onSubmit={handleSubmit(save)}>
               <TimezoneSetting value={timezone} onChange={(value) => setValue('timezone', value, { shouldValidate: true })} />
               <RetentionSetting value={historyRetentionDays} onChange={(value) => setValue('historyRetentionDays', value, { shouldValidate: true })} />
-              <Button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Đang lưu…' : 'Lưu cài đặt'}</Button>
+              <Button type="submit" disabled={isSubmitting || updateSettingsMutation.isPending}>{isSubmitting ? 'Đang lưu…' : 'Lưu cài đặt'}</Button>
             </form>
           </CardContent>
         </Card>
         <Card>
           <CardHeader><CardTitle>Thiết bị đã đăng nhập</CardTitle></CardHeader>
-          <CardContent><SessionList accessToken={token} /></CardContent>
+          <CardContent><SessionList accessToken={token} userId={user.id} /></CardContent>
         </Card>
         {(message || serverError) && <p role={serverError ? 'alert' : 'status'} className={serverError ? 'text-sm text-red-700' : 'text-sm text-primary'}>{serverError ?? message}</p>}
         <Card className="border-red-200">
           <CardHeader><CardTitle className="text-red-900">Vùng nguy hiểm</CardTitle></CardHeader>
           <CardContent>
             <p className="mb-4 text-sm text-muted-foreground">Xóa tài khoản sẽ xóa món riêng, lịch sử và phiên đăng nhập của bạn.</p>
-            <Button variant="outline" className="border-red-300 text-red-800 hover:bg-red-50" onClick={() => void removeAccount()}>Xóa tài khoản</Button>
+            <Button variant="outline" className="border-red-300 text-red-800 hover:bg-red-50" disabled={deleteAccountMutation.isPending} onClick={() => void removeAccount()}>Xóa tài khoản</Button>
           </CardContent>
         </Card>
       </div>
-    </main>
+      </main>
+    </div>
   );
 }

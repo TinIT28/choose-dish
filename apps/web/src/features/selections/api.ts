@@ -11,10 +11,10 @@ export interface Selection {
   selectedAt: string;
 }
 
-export const mealPeriodLabels: Record<MealPeriod, { title: string; icon: string }> = {
-  BREAKFAST: { title: 'Bữa sáng', icon: '☀️' },
-  LUNCH: { title: 'Bữa trưa', icon: '🍲' },
-  DINNER: { title: 'Bữa tối', icon: '🌙' },
+export const mealPeriodLabels: Record<MealPeriod, { title: string; icon: string; time: string; description: string }> = {
+  BREAKFAST: { title: 'Bữa sáng', icon: '☀️', time: '06:00 – 10:30', description: 'Khởi động nhẹ nhàng' },
+  LUNCH: { title: 'Bữa trưa', icon: '🍲', time: '10:30 – 14:30', description: 'Nạp năng lượng giữa ngày' },
+  DINNER: { title: 'Bữa tối', icon: '🌙', time: '17:00 – 22:00', description: 'Khép lại một ngày ngon miệng' },
 };
 
 export function listTodaySelections(accessToken: string) {

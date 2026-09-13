@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   loginRequest,
   logoutAllRequest,
@@ -26,6 +26,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const refreshPromiseRef = useRef<Promise<string | null> | null>(null);
 
   const setSession = useCallback((nextUser: AuthUser, nextAccessToken: string) => {
     setUser(nextUser);
@@ -38,14 +39,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const refreshAccessToken = useCallback(async () => {
-    try {
-      const response = await refreshRequest();
-      setSession(response.user, response.accessToken);
-      return response.accessToken;
-    } catch {
-      clearSession();
-      return null;
+    if (!refreshPromiseRef.current) {
+      refreshPromiseRef.current = (async () => {
+        try {
+          const response = await refreshRequest();
+          setSession(response.user, response.accessToken);
+          return response.accessToken;
+        } catch {
+          clearSession();
+          return null;
+        }
+      })().finally(() => {
+        refreshPromiseRef.current = null;
+      });
     }
+
+    return refreshPromiseRef.current;
   }, [clearSession, setSession]);
 
   const refresh = useCallback(async () => Boolean(await refreshAccessToken()), [refreshAccessToken]);

@@ -1,4 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { MealPeriodIcon } from '../selections/MealPeriodCard';
 import { mealPeriodLabels } from '../selections/api';
 import type { HistoryGroup } from './api';
 
@@ -16,7 +17,7 @@ export function HistoryTimeline({ groups, timezone }: { groups: HistoryGroup[]; 
             {group.selections.map((selection) => (
               <div className="flex items-center justify-between gap-4 rounded-xl bg-muted/60 p-3" key={selection.id}>
                 <div className="flex items-center gap-3">
-                  <span aria-hidden="true">{mealPeriodLabels[selection.mealPeriod].icon}</span>
+                  <span className="flex size-8 items-center justify-center rounded-xl bg-secondary text-secondary-foreground"><MealPeriodIcon mealPeriod={selection.mealPeriod} /></span>
                   <div>
                     <p className="font-semibold">{selection.dishNameSnapshot}</p>
                     <p className="text-xs text-muted-foreground">{mealPeriodLabels[selection.mealPeriod].title}</p>
