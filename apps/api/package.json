@@ -6,6 +6,7 @@
     "build": "nest build",
     "start": "node dist/main.js",
     "postinstall": "prisma generate",
+    "vercel-build": "prisma generate",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",

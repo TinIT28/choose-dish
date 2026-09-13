@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -12,17 +12,15 @@ const vercelConfig = JSON.parse(
   readFileSync(join(__dirname, '../../vercel.json'), 'utf8'),
 ) as VercelConfig;
 const packageConfig = JSON.parse(readFileSync(join(__dirname, '../../package.json'), 'utf8')) as {
-  scripts?: { postinstall?: string };
+  scripts?: { postinstall?: string; 'vercel-build'?: string };
 };
-const apiFunctionSource = readFileSync(join(__dirname, '../../api/[...path].ts'), 'utf8');
 
 describe('Vercel API deployment configuration', () => {
-  it('uses an automatic API function and generates Prisma before deployment', () => {
-    expect(vercelConfig.buildCommand).toBe('bun run db:generate');
-    expect(vercelConfig.builds).toBeUndefined();
-    expect(vercelConfig.routes).toBeUndefined();
-    expect(existsSync(join(__dirname, '../../api/[...path].ts'))).toBe(true);
-    expect(apiFunctionSource).toContain('export default function');
+  it('routes requests through Nest and generates Prisma before custom builds', () => {
+    expect(vercelConfig.buildCommand).toBeUndefined();
+    expect(vercelConfig.builds).toEqual([{ src: 'src/main.ts', use: '@vercel/node' }]);
+    expect(vercelConfig.routes).toEqual([{ src: '/(.*)', dest: 'src/main.ts' }]);
     expect(packageConfig.scripts?.postinstall).toBe('prisma generate');
+    expect(packageConfig.scripts?.['vercel-build']).toBe('prisma generate');
   });
 });
