@@ -93,7 +93,6 @@ export function uploadImageToCloudinary(signature: UploadSignature, file: File, 
     formData.append('timestamp', String(signature.timestamp));
     formData.append('folder', signature.folder);
     formData.append('allowed_formats', signature.allowedFormats);
-    formData.append('max_file_size', String(signature.maxFileSize));
     formData.append('signature', signature.signature);
 
     const request = new XMLHttpRequest();

@@ -29,7 +29,7 @@ export class CloudinaryService {
     const timestamp = Math.floor(Date.now() / 1000);
     const folder = DEFAULT_FOLDER;
     const signature = createHash('sha1')
-      .update(`allowed_formats=${ALLOWED_FORMATS}&folder=${folder}&max_file_size=${MAX_FILE_SIZE}&timestamp=${timestamp}${apiSecret}`)
+      .update(`allowed_formats=${ALLOWED_FORMATS}&folder=${folder}&timestamp=${timestamp}${apiSecret}`)
       .digest('hex');
     return { cloudName, apiKey, timestamp, folder, allowedFormats: ALLOWED_FORMATS, maxFileSize: MAX_FILE_SIZE, signature };
   }
