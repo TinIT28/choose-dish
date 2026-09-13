@@ -3,19 +3,21 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 type VercelConfig = {
-  builds?: Array<{ src: string; use: string }>;
-  routes?: Array<{ src: string; dest: string }>;
   buildCommand?: string;
+  builds?: unknown;
+  routes?: unknown;
 };
 
 const vercelConfig = JSON.parse(
   readFileSync(join(__dirname, '../../vercel.json'), 'utf8'),
 ) as VercelConfig;
+const apiEntrypoint = readFileSync(join(__dirname, '../../api/[...path].ts'), 'utf8');
 
 describe('Vercel API deployment configuration', () => {
-  it('builds and routes through the source NestJS serverless handler', () => {
-    expect(vercelConfig.builds).toEqual([{ src: 'src/main.ts', use: '@vercel/node' }]);
-    expect(vercelConfig.routes).toEqual([{ src: '/(.*)', dest: 'src/main.ts' }]);
-    expect(vercelConfig).not.toHaveProperty('buildCommand');
+  it('generates Prisma Client before the automatic API function is built', () => {
+    expect(vercelConfig.buildCommand).toBe('bun run db:generate');
+    expect(vercelConfig).not.toHaveProperty('builds');
+    expect(vercelConfig).not.toHaveProperty('routes');
+    expect(apiEntrypoint).toContain("export { default } from '../src/main';");
   });
 });

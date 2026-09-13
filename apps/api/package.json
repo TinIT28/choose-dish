@@ -5,6 +5,7 @@
     "dev": "nest start --watch",
     "build": "nest build",
     "start": "node dist/main.js",
+    "postinstall": "prisma generate",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
