@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthService } from './auth.service';
 
 function makeJwt() {
@@ -10,6 +10,13 @@ function makeJwt() {
 }
 
 describe('AuthService', () => {
+  beforeEach(() => {
+    vi.stubEnv('JWT_ACCESS_SECRET', 'test-access-secret');
+    vi.stubEnv('JWT_REFRESH_SECRET', 'test-refresh-secret');
+  });
+
+  afterEach(() => vi.unstubAllEnvs());
+
   it('makes the first registered user an admin and returns a token pair', async () => {
     const createdUser = {
       id: 'user-1',

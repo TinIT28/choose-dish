@@ -1,5 +1,5 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { DishScope, MealPeriod } from '@prisma/client';
+import { DishScope, MealPeriod, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { getLocalDate, getRecentLocalDates, selectCandidateDish, type RecentSelection } from './selection-rules';
 
@@ -54,11 +54,18 @@ export class SelectionsService {
       throw new NoAvailableDishException();
     }
 
-    return this.prisma.selection.upsert({
-      where: { userId_localDate_mealPeriod: { userId, localDate, mealPeriod } },
-      update: { dishId, dishNameSnapshot: dish.name, selectedAt: now },
-      create: { userId, localDate, mealPeriod, dishId, dishNameSnapshot: dish.name, selectedAt: now },
-    });
+    try {
+      return await this.prisma.selection.upsert({
+        where: { userId_localDate_mealPeriod: { userId, localDate, mealPeriod } },
+        update: { dishId, dishNameSnapshot: dish.name, selectedAt: now },
+        create: { userId, localDate, mealPeriod, dishId, dishNameSnapshot: dish.name, selectedAt: now },
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        return this.prisma.selection.findUnique({ where: { userId_localDate_mealPeriod: { userId, localDate, mealPeriod } } });
+      }
+      throw error;
+    }
   }
 
   async listToday(userId: string, now = new Date()) {

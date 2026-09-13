@@ -1,21 +1,19 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { getLocalDate, getLocalDates } from '../selections/selection-rules';
 
 @Injectable()
 export class HistoryService {
   constructor(private readonly prisma: PrismaService) {}
 
   async list(userId: string, now = new Date()) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { timezone: true, historyRetentionDays: true } });
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { historyRetentionDays: true } });
     if (!user) {
       throw new NotFoundException('Không tìm thấy tài khoản');
     }
 
-    const currentLocalDate = getLocalDate(now, user.timezone);
-    const dates = getLocalDates(currentLocalDate, user.historyRetentionDays);
+    const cutoff = new Date(now.getTime() - user.historyRetentionDays * 24 * 60 * 60 * 1000);
     const selections = await this.prisma.selection.findMany({
-      where: { userId, localDate: { in: dates } },
+      where: { userId, selectedAt: { gte: cutoff } },
       orderBy: [{ localDate: 'desc' }, { selectedAt: 'desc' }],
     });
     const groups = new Map<string, typeof selections>();

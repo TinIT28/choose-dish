@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent } from '../../components/ui/card';
 import { copySharedDish, excludeSharedDish, includeSharedDish, type Dish } from './api';
@@ -11,8 +11,11 @@ interface SharedDishListProps {
 }
 
 export function SharedDishList({ accessToken, dishes, onEdit }: SharedDishListProps) {
+  const [localDishes, setLocalDishes] = useState(dishes);
   const [message, setMessage] = useState<string | null>(null);
   const [busyDishId, setBusyDishId] = useState<string | null>(null);
+
+  useEffect(() => setLocalDishes(dishes), [dishes]);
 
   async function copy(dishId: string) {
     setBusyDishId(dishId);
@@ -39,6 +42,7 @@ export function SharedDishList({ accessToken, dishes, onEdit }: SharedDishListPr
         await excludeSharedDish(accessToken, dishId);
         setMessage('Đã ẩn món khỏi các lựa chọn của bạn.');
       }
+      setLocalDishes((current) => current.map((currentDish) => currentDish.id === dishId ? { ...currentDish, isExcluded: !isExcluded } : currentDish));
     } catch {
       setMessage('Không thể ẩn món này.');
     } finally {
@@ -46,7 +50,7 @@ export function SharedDishList({ accessToken, dishes, onEdit }: SharedDishListPr
     }
   }
 
-  if (dishes.length === 0) {
+  if (localDishes.length === 0) {
     return <p className="text-sm text-muted-foreground">Chưa có món dùng chung nào.</p>;
   }
 
@@ -54,7 +58,7 @@ export function SharedDishList({ accessToken, dishes, onEdit }: SharedDishListPr
     <div className="space-y-4">
       {message && <p role="status" className="text-sm text-primary">{message}</p>}
       <div className="grid gap-4 sm:grid-cols-2">
-        {dishes.map((dish) => (
+        {localDishes.map((dish) => (
           <Card key={dish.id} className="overflow-hidden">
             <DishCard dish={dish} />
             <CardContent className="flex gap-2 border-t p-4">

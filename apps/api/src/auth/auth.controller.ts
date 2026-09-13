@@ -79,7 +79,7 @@ export class AuthController {
   private cookieOptions() {
     return {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: process.env.NODE_ENV === 'production' || process.env.VERCEL === '1',
       sameSite: process.env.NODE_ENV === 'production' ? 'none' as const : 'lax' as const,
       path: '/api/v1/auth',
     };

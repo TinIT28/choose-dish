@@ -15,16 +15,10 @@ import {
 
 const ACCESS_TOKEN_TTL = '15m';
 const REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
-const REFRESH_COOKIE_SECRET = 'development-refresh-secret-change-me';
-const ACCESS_COOKIE_SECRET = 'development-access-secret-change-me';
-
-function getSecret(name: string, developmentFallback: string) {
+function getSecret(name: string) {
   const configured = process.env[name];
   if (configured) return configured;
-  if (process.env.NODE_ENV === 'production' || process.env.VERCEL === '1') {
-    throw new Error(`Thiếu biến môi trường bắt buộc: ${name}`);
-  }
-  return developmentFallback;
+  throw new Error(`Thiếu biến môi trường bắt buộc: ${name}`);
 }
 
 function normalizeEmail(email: string) {
@@ -46,21 +40,28 @@ export class AuthService {
     const normalizedEmail = normalizeEmail(email);
     const passwordHash = await argon2.hash(password, { type: argon2.argon2id });
 
-    const user = await this.prisma.$transaction(
-      async (transaction) => {
-        const userCount = await transaction.user.count();
-        return transaction.user.create({
-          data: {
-            email: normalizedEmail,
-            passwordHash,
-            role: userCount === 0 ? Role.ADMIN : Role.USER,
+    let user: User | undefined;
+    for (let attempt = 0; attempt < 3 && !user; attempt += 1) {
+      try {
+        user = await this.prisma.$transaction(
+          async (transaction) => {
+            const userCount = await transaction.user.count();
+            return transaction.user.create({
+              data: {
+                email: normalizedEmail,
+                passwordHash,
+                role: userCount === 0 ? Role.ADMIN : Role.USER,
+              },
+            });
           },
-        });
-      },
-      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
-    );
+          { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+        );
+      } catch (error) {
+        if ((error as { code?: string }).code !== 'P2034' || attempt === 2) throw error;
+      }
+    }
 
-    return this.createSession(user, metadata);
+    return this.createSession(user!, metadata);
   }
 
   async login(email: string, password: string, metadata: SessionMetadata = {}): Promise<TokenPair> {
@@ -130,11 +131,11 @@ export class AuthService {
   }
 
   private get accessSecret() {
-    return getSecret('JWT_ACCESS_SECRET', ACCESS_COOKIE_SECRET);
+    return getSecret('JWT_ACCESS_SECRET');
   }
 
   private get refreshSecret() {
-    return getSecret('JWT_REFRESH_SECRET', REFRESH_COOKIE_SECRET);
+    return getSecret('JWT_REFRESH_SECRET');
   }
 
   private async verifyRefreshToken(refreshToken: string) {

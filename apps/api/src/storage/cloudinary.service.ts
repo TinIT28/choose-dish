@@ -12,7 +12,7 @@ export class CloudinaryService {
     if (!cloudName) return false;
     try {
       const url = new URL(imageUrl);
-      return url.hostname === 'res.cloudinary.com' && url.pathname.includes(`/${cloudName}/`);
+      return url.hostname === 'res.cloudinary.com' && url.pathname.startsWith(`/${cloudName}/`);
     } catch {
       return false;
     }
