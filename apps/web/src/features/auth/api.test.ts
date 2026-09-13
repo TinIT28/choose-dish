@@ -10,4 +10,8 @@ describe('resolveApiBaseUrl', () => {
       }),
     ).toBe('https://choose-dish-api.vercel.app/api/v1');
   });
+
+  it('uses the deployed API when Vercel does not inject the public config', () => {
+    expect(resolveApiBaseUrl({ MODE: 'production' })).toBe('https://choose-dish-api.vercel.app/api/v1');
+  });
 });

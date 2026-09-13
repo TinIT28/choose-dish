@@ -17,12 +17,11 @@ interface ApiEnvironment {
   VITE_API_BASE_URL?: string;
 }
 
+const PRODUCTION_API_BASE_URL = 'https://choose-dish-api.vercel.app/api/v1';
+
 export function resolveApiBaseUrl(env: ApiEnvironment) {
   const configuredApiBaseUrl = env.VITE_PUBLIC_API_BASE_URL ?? env.VITE_API_BASE_URL;
-  if (!configuredApiBaseUrl && env.MODE === 'production') {
-    throw new Error('VITE_PUBLIC_API_BASE_URL phải được cấu hình khi build production');
-  }
-  return configuredApiBaseUrl ?? 'http://localhost:3001/api/v1';
+  return configuredApiBaseUrl ?? (env.MODE === 'production' ? PRODUCTION_API_BASE_URL : 'http://localhost:3001/api/v1');
 }
 
 const API_BASE_URL = resolveApiBaseUrl(import.meta.env);
