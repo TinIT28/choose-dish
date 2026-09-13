@@ -11,11 +11,21 @@ export interface AuthResponse {
   accessToken: string;
 }
 
-const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL;
-if (!configuredApiBaseUrl && import.meta.env.MODE === 'production') {
-  throw new Error('VITE_API_BASE_URL phải được cấu hình khi build production');
+interface ApiEnvironment {
+  MODE: string;
+  VITE_PUBLIC_API_BASE_URL?: string;
+  VITE_API_BASE_URL?: string;
 }
-const API_BASE_URL = configuredApiBaseUrl ?? 'http://localhost:3001/api/v1';
+
+export function resolveApiBaseUrl(env: ApiEnvironment) {
+  const configuredApiBaseUrl = env.VITE_PUBLIC_API_BASE_URL ?? env.VITE_API_BASE_URL;
+  if (!configuredApiBaseUrl && env.MODE === 'production') {
+    throw new Error('VITE_PUBLIC_API_BASE_URL phải được cấu hình khi build production');
+  }
+  return configuredApiBaseUrl ?? 'http://localhost:3001/api/v1';
+}
+
+const API_BASE_URL = resolveApiBaseUrl(import.meta.env);
 let refreshHandler: (() => Promise<string | null>) | null = null;
 let refreshPromise: Promise<string | null> | null = null;
 
