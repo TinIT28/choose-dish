@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum Role {
@@ -21,6 +22,9 @@ model User {
   historyRetentionDays Int       @default(30)
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
+  dishes               Dish[]
+  exclusions           PersonalExclusion[]
+  selections           Selection[]
   sessions             Session[]
 }
 
@@ -38,4 +42,63 @@ model Session {
 
   @@index([userId])
   @@index([refreshTokenHash])
+}
+
+enum DishScope {
+  PRIVATE
+  SHARED
+}
+
+model Dish {
+  id                 String             @id @default(uuid()) @db.Uuid
+  scope              DishScope          @default(PRIVATE)
+  ownerId            String?            @db.Uuid
+  name               String
+  shortDescription   String
+  imageUrl           String
+  cloudinaryPublicId String
+  isActive           Boolean            @default(true)
+  deletedAt          DateTime?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  owner              User?              @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  exclusions         PersonalExclusion[]
+  selections         Selection[]
+
+  @@index([ownerId, scope, isActive])
+  @@index([scope, isActive])
+}
+
+model PersonalExclusion {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  dishId    String   @db.Uuid
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dish      Dish     @relation(fields: [dishId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dishId])
+  @@index([dishId])
+}
+
+enum MealPeriod {
+  BREAKFAST
+  LUNCH
+  DINNER
+}
+
+model Selection {
+  id               String     @id @default(uuid()) @db.Uuid
+  userId           String     @db.Uuid
+  dishId           String     @db.Uuid
+  localDate        String     @db.VarChar(10)
+  mealPeriod       MealPeriod
+  dishNameSnapshot String
+  selectedAt       DateTime   @default(now())
+  user             User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dish             Dish       @relation(fields: [dishId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, localDate, mealPeriod])
+  @@index([userId, localDate])
+  @@index([dishId])
 }

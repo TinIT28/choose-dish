@@ -5,6 +5,7 @@ import {
   logoutRequest,
   refreshRequest,
   registerRequest,
+  registerRefreshHandler,
   type AuthUser,
 } from './api';
 
@@ -45,6 +46,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearSession();
       return false;
     }
+  }, [clearSession, setSession]);
+
+  useEffect(() => {
+    const handler = async () => {
+      try {
+        const response = await refreshRequest();
+        setSession(response.user, response.accessToken);
+        return response.accessToken;
+      } catch {
+        clearSession();
+        return null;
+      }
+    };
+    registerRefreshHandler(handler);
+    return () => registerRefreshHandler(null);
   }, [clearSession, setSession]);
 
   useEffect(() => {

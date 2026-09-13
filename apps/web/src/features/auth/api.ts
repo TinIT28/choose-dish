@@ -12,49 +12,63 @@ export interface AuthResponse {
 }
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3001/api/v1';
+let refreshHandler: (() => Promise<string | null>) | null = null;
 
-async function request<T>(path: string, init: RequestInit = {}) {
+export function registerRefreshHandler(handler: (() => Promise<string | null>) | null) {
+  refreshHandler = handler;
+}
+
+export async function apiRequest<T>(path: string, init: RequestInit = {}, accessToken?: string, canRetry = true): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
     credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
       ...init.headers,
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
     },
   });
 
   if (!response.ok) {
+    if (response.status === 401 && canRetry && refreshHandler && accessToken && path !== '/auth/refresh') {
+      const refreshedAccessToken = await refreshHandler();
+      if (refreshedAccessToken) {
+        return apiRequest<T>(path, init, refreshedAccessToken, false);
+      }
+    }
     const payload = (await response.json().catch(() => null)) as { message?: string } | null;
-    throw new Error(payload?.message ?? 'Có lỗi xảy ra. Vui lòng thử lại.');
+    const error = new Error(payload?.message ?? 'Có lỗi xảy ra. Vui lòng thử lại.');
+    Object.assign(error, { status: response.status });
+    throw error;
   }
 
   return (await response.json()) as T;
 }
 
 export function registerRequest(email: string, password: string) {
-  return request<AuthResponse>('/auth/register', {
+  return apiRequest<AuthResponse>('/auth/register', {
     method: 'POST',
     body: JSON.stringify({ email, password }),
   });
 }
 
 export function loginRequest(email: string, password: string) {
-  return request<AuthResponse>('/auth/login', {
+  return apiRequest<AuthResponse>('/auth/login', {
     method: 'POST',
     body: JSON.stringify({ email, password }),
   });
 }
 
 export function refreshRequest() {
-  return request<AuthResponse>('/auth/refresh', { method: 'POST' });
+  return apiRequest<AuthResponse>('/auth/refresh', { method: 'POST' });
 }
 
 export function logoutRequest() {
-  return request<{ ok: true }>('/auth/logout', { method: 'POST' });
+  return apiRequest<{ ok: true }>('/auth/logout', { method: 'POST' });
 }
 
 export function logoutAllRequest(accessToken: string) {
-  return request<{ ok: true }>('/auth/logout-all', {
+  return apiRequest<{ ok: true }>('/auth/logout-all', {
     method: 'POST',
     headers: { Authorization: `Bearer ${accessToken}` },
   });
