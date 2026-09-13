@@ -14,6 +14,7 @@ const vercelConfig = JSON.parse(
 const packageConfig = JSON.parse(readFileSync(join(__dirname, '../../package.json'), 'utf8')) as {
   scripts?: { postinstall?: string };
 };
+const apiFunctionSource = readFileSync(join(__dirname, '../../api/[...path].ts'), 'utf8');
 
 describe('Vercel API deployment configuration', () => {
   it('uses an automatic API function and generates Prisma before deployment', () => {
@@ -21,6 +22,7 @@ describe('Vercel API deployment configuration', () => {
     expect(vercelConfig.builds).toBeUndefined();
     expect(vercelConfig.routes).toBeUndefined();
     expect(existsSync(join(__dirname, '../../api/[...path].ts'))).toBe(true);
+    expect(apiFunctionSource).toContain('export default function');
     expect(packageConfig.scripts?.postinstall).toBe('prisma generate');
   });
 });

@@ -5,7 +5,6 @@ import { ValidationPipe } from '@nestjs/common';
 import type { INestApplication } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { getApiPrefix } from './config/api-prefix';
 import { validateEnvironment } from './config/env';
 import { HttpExceptionFilter } from './common/http-exception.filter';
 
@@ -13,7 +12,7 @@ validateEnvironment();
 
 async function createApp(): Promise<INestApplication> {
   const app = await NestFactory.create(AppModule);
-  app.setGlobalPrefix(getApiPrefix());
+  app.setGlobalPrefix('api/v1');
   app.use(cookieParser());
   app.enableCors({
     origin: process.env.FRONTEND_ORIGIN ?? 'http://localhost:3000',
