@@ -1,5 +1,5 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
-import { AuthGuard, type AuthenticatedRequest } from '../auth/auth.guard';
+import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { AuthGuard } from '../auth/auth.guard';
 import { AdminGuard } from './admin.guard';
 import { CreateSharedDishDto, ResetPasswordDto } from './admin.dto';
 import { AdminService } from './admin.service';
@@ -13,6 +13,11 @@ export class AdminController {
   @Get('shared-dishes')
   listShared() {
     return this.adminService.listShared();
+  }
+
+  @Get('users')
+  listUsers() {
+    return this.adminService.listUsers();
   }
 
   @Post('shared-dishes')
@@ -35,8 +40,4 @@ export class AdminController {
     return this.adminService.resetPassword(id, body.password).then(() => ({ ok: true }));
   }
 
-  @Post('shared-dishes/:id/copy')
-  copyShared(@Req() request: AuthenticatedRequest, @Param('id') id: string) {
-    return this.adminService.copySharedDish(request.user.id, id);
-  }
 }

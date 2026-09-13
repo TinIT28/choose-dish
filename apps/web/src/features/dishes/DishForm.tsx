@@ -14,71 +14,62 @@ import { Label } from "../../components/ui/label";
 import {
   createDish,
   requestUploadSignature,
+  updateDish,
   uploadImageToCloudinary,
   type Dish,
 } from "./api";
 
-const dishFormSchema = z.object({
-  name: z
-    .string()
-    .trim()
-    .min(1, "Hãy nhập tên món")
-    .max(120, "Tên món tối đa 120 ký tự"),
-  shortDescription: z
-    .string()
-    .trim()
-    .min(1, "Hãy thêm mô tả ngắn")
-    .max(500, "Mô tả tối đa 500 ký tự"),
-  image: z
-    .any()
-    .refine(
-      (files: FileList | undefined) => Boolean(files?.length),
-      "Hãy chọn một ảnh món ăn",
-    )
-    .refine(
-      (files: FileList | undefined) => !files?.[0] || files[0].size <= 5 * 1024 * 1024,
-      "Ảnh tối đa 5 MB",
-    ),
-});
-
-type DishFormValues = z.infer<typeof dishFormSchema>;
-
 interface DishFormProps {
   accessToken: string;
   onSaved: (dish: Dish) => void;
+  initialDish?: Dish;
+  saveDish?: (input: Omit<Dish, 'id' | 'isActive'>) => Promise<Dish>;
+  title?: string;
 }
 
-export function DishForm({ accessToken, onSaved }: DishFormProps) {
+export function DishForm({ accessToken, onSaved, initialDish, saveDish, title = 'Thêm món riêng' }: DishFormProps) {
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
+  const formSchema = z.object({
+    name: z.string().trim().min(1, "Hãy nhập tên món").max(120, "Tên món tối đa 120 ký tự"),
+    shortDescription: z.string().trim().min(1, "Hãy thêm mô tả ngắn").max(500, "Mô tả tối đa 500 ký tự"),
+    image: z.any().superRefine((files: FileList | undefined, context) => {
+      if (!files?.length && !initialDish) context.addIssue({ code: z.ZodIssueCode.custom, message: 'Hãy chọn một ảnh món ăn' });
+      if (files?.length && files.length !== 1) context.addIssue({ code: z.ZodIssueCode.custom, message: 'Chỉ được chọn một ảnh' });
+      if (files?.[0] && files[0].size > 5 * 1024 * 1024) context.addIssue({ code: z.ZodIssueCode.custom, message: 'Ảnh tối đa 5 MB' });
+      if (files?.[0] && !['image/jpeg', 'image/png', 'image/webp'].includes(files[0].type)) context.addIssue({ code: z.ZodIssueCode.custom, message: 'Chỉ hỗ trợ JPG, PNG hoặc WebP' });
+    }),
+  });
+  type FormValues = z.infer<typeof formSchema>;
   const {
     register,
     handleSubmit,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<DishFormValues>({ resolver: zodResolver(dishFormSchema) });
+  } = useForm<FormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: { name: initialDish?.name ?? '', shortDescription: initialDish?.shortDescription ?? '' },
+  });
 
-  async function onSubmit(values: DishFormValues) {
+  async function onSubmit(values: FormValues) {
     const file = values.image?.[0] as File | undefined;
-    if (!file) return;
 
     setServerError(null);
-    setUploadProgress(0);
+    setUploadProgress(file ? 0 : null);
     try {
-      const signature = await requestUploadSignature(accessToken);
-      const upload = await uploadImageToCloudinary(
-        signature,
-        file,
-        setUploadProgress,
-      );
-      const dish = await createDish(accessToken, {
+      const upload = file
+        ? await uploadImageToCloudinary(await requestUploadSignature(accessToken), file, setUploadProgress)
+        : null;
+      const input = {
         name: values.name,
         shortDescription: values.shortDescription,
-        imageUrl: upload.secure_url,
-        cloudinaryPublicId: upload.public_id,
-      });
+        imageUrl: upload?.secure_url ?? initialDish?.imageUrl ?? '',
+        cloudinaryPublicId: upload?.public_id ?? initialDish?.cloudinaryPublicId ?? '',
+      };
+      const save = saveDish ?? ((nextInput: Omit<Dish, 'id' | 'isActive'>) => initialDish ? updateDish(accessToken, initialDish.id, nextInput) : createDish(accessToken, nextInput));
+      const dish = await save(input);
       onSaved(dish);
-      reset();
+      reset(initialDish ? { name: dish.name, shortDescription: dish.shortDescription } : undefined);
       setUploadProgress(null);
     } catch (error) {
       setUploadProgress(null);
@@ -91,7 +82,7 @@ export function DishForm({ accessToken, onSaved }: DishFormProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Thêm món riêng</CardTitle>
+        <CardTitle>{title}</CardTitle>
         <p className="text-sm text-muted-foreground">
           Mỗi món cần một ảnh để dễ nhận ra khi chọn ngẫu nhiên.
         </p>

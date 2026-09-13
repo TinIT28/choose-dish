@@ -15,6 +15,7 @@ function formatSelectionTime(selectedAt: string, timezone: string) {
   return new Intl.DateTimeFormat('vi-VN', {
     hour: '2-digit',
     minute: '2-digit',
+    second: '2-digit',
     hour12: false,
     timeZone: timezone,
   }).format(new Date(selectedAt));

@@ -23,7 +23,7 @@ export function HistoryTimeline({ groups, timezone }: { groups: HistoryGroup[]; 
                   </div>
                 </div>
                 <time className="shrink-0 text-sm text-muted-foreground">
-                  {new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: timezone }).format(new Date(selection.selectedAt))}
+                  {new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: timezone }).format(new Date(selection.selectedAt))}
                 </time>
               </div>
             ))}

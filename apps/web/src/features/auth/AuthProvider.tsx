@@ -37,31 +37,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAccessToken(null);
   }, []);
 
-  const refresh = useCallback(async () => {
+  const refreshAccessToken = useCallback(async () => {
     try {
       const response = await refreshRequest();
       setSession(response.user, response.accessToken);
-      return true;
+      return response.accessToken;
     } catch {
       clearSession();
-      return false;
+      return null;
     }
   }, [clearSession, setSession]);
 
+  const refresh = useCallback(async () => Boolean(await refreshAccessToken()), [refreshAccessToken]);
+
   useEffect(() => {
-    const handler = async () => {
-      try {
-        const response = await refreshRequest();
-        setSession(response.user, response.accessToken);
-        return response.accessToken;
-      } catch {
-        clearSession();
-        return null;
-      }
-    };
-    registerRefreshHandler(handler);
+    registerRefreshHandler(refreshAccessToken);
     return () => registerRefreshHandler(null);
-  }, [clearSession, setSession]);
+  }, [refreshAccessToken]);
 
   useEffect(() => {
     void refresh().finally(() => setIsLoading(false));

@@ -1,15 +1,16 @@
 import { useState } from 'react';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent } from '../../components/ui/card';
-import { copySharedDish, excludeSharedDish, type Dish } from './api';
+import { copySharedDish, excludeSharedDish, includeSharedDish, type Dish } from './api';
 import { DishCard } from './DishCard';
 
 interface SharedDishListProps {
   accessToken: string;
   dishes: Dish[];
+  onEdit?: (dish: Dish) => void;
 }
 
-export function SharedDishList({ accessToken, dishes }: SharedDishListProps) {
+export function SharedDishList({ accessToken, dishes, onEdit }: SharedDishListProps) {
   const [message, setMessage] = useState<string | null>(null);
   const [busyDishId, setBusyDishId] = useState<string | null>(null);
 
@@ -26,12 +27,18 @@ export function SharedDishList({ accessToken, dishes }: SharedDishListProps) {
     }
   }
 
-  async function hide(dishId: string) {
+  async function toggleExclusion(dish: Dish) {
+    const { id: dishId, isExcluded } = dish;
     setBusyDishId(dishId);
     setMessage(null);
     try {
-      await excludeSharedDish(accessToken, dishId);
-      setMessage('Đã ẩn món khỏi các lựa chọn của bạn.');
+      if (isExcluded) {
+        await includeSharedDish(accessToken, dishId);
+        setMessage('Đã hiện lại món trong các lựa chọn của bạn.');
+      } else {
+        await excludeSharedDish(accessToken, dishId);
+        setMessage('Đã ẩn món khỏi các lựa chọn của bạn.');
+      }
     } catch {
       setMessage('Không thể ẩn món này.');
     } finally {
@@ -51,11 +58,12 @@ export function SharedDishList({ accessToken, dishes }: SharedDishListProps) {
           <Card key={dish.id} className="overflow-hidden">
             <DishCard dish={dish} />
             <CardContent className="flex gap-2 border-t p-4">
+              {onEdit && <Button variant="outline" size="sm" onClick={() => onEdit(dish)}>Sửa</Button>}
               <Button className="flex-1" size="sm" disabled={busyDishId === dish.id} onClick={() => void copy(dish.id)}>
                 Sao chép
               </Button>
-              <Button variant="outline" size="sm" disabled={busyDishId === dish.id} onClick={() => void hide(dish.id)}>
-                Ẩn món
+              <Button variant="outline" size="sm" disabled={busyDishId === dish.id} onClick={() => void toggleExclusion(dish)}>
+                {dish.isExcluded ? 'Hiện lại' : 'Ẩn món'}
               </Button>
             </CardContent>
           </Card>

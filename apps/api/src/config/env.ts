@@ -11,7 +11,8 @@ const requiredProductionVariables = [
 ] as const;
 
 export function validateEnvironment(environment: NodeJS.ProcessEnv = process.env) {
-  if (environment.NODE_ENV !== 'production') return;
+  const productionLike = environment.NODE_ENV === 'production' || environment.VERCEL === '1';
+  if (!productionLike) return;
 
   const missing = requiredProductionVariables.filter((name) => !environment[name]);
   if (missing.length > 0) {

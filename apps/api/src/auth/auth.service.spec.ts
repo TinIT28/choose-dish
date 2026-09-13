@@ -72,15 +72,15 @@ describe('AuthService', () => {
     const prisma = {
       session: {
         findUnique: vi.fn().mockResolvedValue(session),
-        update: vi.fn().mockResolvedValue(session),
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
       },
     };
     const service = new AuthService(prisma as never, jwt as never);
 
     const result = await service.refresh('old-refresh-token');
 
-    expect(prisma.session.update).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: session.id }, data: expect.objectContaining({ refreshTokenHash: expect.any(String) }) }),
+    expect(prisma.session.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ id: session.id }), data: expect.objectContaining({ refreshTokenHash: expect.any(String) }) }),
     );
     expect(result.accessToken).toBe('access-token');
     expect(result.refreshToken).toBe('refresh-token');

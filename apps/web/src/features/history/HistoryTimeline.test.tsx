@@ -13,6 +13,6 @@ describe('HistoryTimeline', () => {
 
     expect(screen.getByText('2026-09-13')).toBeInTheDocument();
     expect(screen.getByText('Cơm tấm')).toBeInTheDocument();
-    expect(screen.getByText('12:30')).toBeInTheDocument();
+    expect(screen.getByText('12:30:00')).toBeInTheDocument();
   });
 });

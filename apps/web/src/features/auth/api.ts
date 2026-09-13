@@ -11,8 +11,13 @@ export interface AuthResponse {
   accessToken: string;
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3001/api/v1';
+const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+if (!configuredApiBaseUrl && import.meta.env.MODE === 'production') {
+  throw new Error('VITE_API_BASE_URL phải được cấu hình khi build production');
+}
+const API_BASE_URL = configuredApiBaseUrl ?? 'http://localhost:3001/api/v1';
 let refreshHandler: (() => Promise<string | null>) | null = null;
+let refreshPromise: Promise<string | null> | null = null;
 
 export function registerRefreshHandler(handler: (() => Promise<string | null>) | null) {
   refreshHandler = handler;
@@ -31,7 +36,10 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}, access
 
   if (!response.ok) {
     if (response.status === 401 && canRetry && refreshHandler && accessToken && path !== '/auth/refresh') {
-      const refreshedAccessToken = await refreshHandler();
+      refreshPromise ??= refreshHandler().finally(() => {
+        refreshPromise = null;
+      });
+      const refreshedAccessToken = await refreshPromise;
       if (refreshedAccessToken) {
         return apiRequest<T>(path, init, refreshedAccessToken, false);
       }

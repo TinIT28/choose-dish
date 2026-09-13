@@ -18,6 +18,15 @@ const REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const REFRESH_COOKIE_SECRET = 'development-refresh-secret-change-me';
 const ACCESS_COOKIE_SECRET = 'development-access-secret-change-me';
 
+function getSecret(name: string, developmentFallback: string) {
+  const configured = process.env[name];
+  if (configured) return configured;
+  if (process.env.NODE_ENV === 'production' || process.env.VERCEL === '1') {
+    throw new Error(`Thiếu biến môi trường bắt buộc: ${name}`);
+  }
+  return developmentFallback;
+}
+
 function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
 }
@@ -65,21 +74,27 @@ export class AuthService {
 
   async refresh(refreshToken: string): Promise<TokenPair> {
     const payload = await this.verifyRefreshToken(refreshToken);
+    const now = new Date();
     const session = await this.prisma.session.findUnique({
       where: { id: payload.sid },
       include: { user: true },
     });
 
-    if (!session || session.userId !== payload.sub || session.revokedAt || session.expiresAt <= new Date()) {
+    if (!session || session.userId !== payload.sub || session.revokedAt || session.expiresAt <= now) {
       throw new UnauthorizedException('Refresh token không còn hiệu lực');
     }
 
-    if (session.refreshTokenHash !== hashRefreshToken(refreshToken)) {
-      await this.prisma.session.update({ where: { id: session.id }, data: { revokedAt: new Date() } });
+    const tokens = await this.signTokens(session.user, session.id);
+    const rotation = await this.prisma.session.updateMany({
+      where: { id: session.id, refreshTokenHash: hashRefreshToken(refreshToken), revokedAt: null, expiresAt: { gt: now } },
+      data: { refreshTokenHash: hashRefreshToken(tokens.refreshToken), lastUsedAt: now, expiresAt: new Date(now.getTime() + REFRESH_TOKEN_TTL_MS) },
+    });
+    if (rotation.count !== 1) {
+      await this.prisma.session.updateMany({ where: { id: session.id, revokedAt: null }, data: { revokedAt: now } });
       throw new UnauthorizedException('Refresh token đã bị sử dụng lại');
     }
 
-    return this.createSessionTokens(session.user, session.id, session.userAgent ? { userAgent: session.userAgent } : {}, true);
+    return { user: this.toPublicUser(session.user), ...tokens };
   }
 
   async revokeRefreshToken(refreshToken: string) {
@@ -115,11 +130,11 @@ export class AuthService {
   }
 
   private get accessSecret() {
-    return process.env.JWT_ACCESS_SECRET ?? ACCESS_COOKIE_SECRET;
+    return getSecret('JWT_ACCESS_SECRET', ACCESS_COOKIE_SECRET);
   }
 
   private get refreshSecret() {
-    return process.env.JWT_REFRESH_SECRET ?? REFRESH_COOKIE_SECRET;
+    return getSecret('JWT_REFRESH_SECRET', REFRESH_COOKIE_SECRET);
   }
 
   private async verifyRefreshToken(refreshToken: string) {
@@ -131,10 +146,22 @@ export class AuthService {
   }
 
   private async createSession(user: User, metadata: SessionMetadata): Promise<TokenPair> {
-    return this.createSessionTokens(user, randomUUID(), metadata, false);
+    const sessionId = randomUUID();
+    const tokens = await this.signTokens(user, sessionId);
+    await this.prisma.session.create({
+      data: {
+        id: sessionId,
+        userId: user.id,
+        refreshTokenHash: hashRefreshToken(tokens.refreshToken),
+        userAgent: metadata.userAgent,
+        ipAddress: metadata.ipAddress,
+        expiresAt: new Date(Date.now() + REFRESH_TOKEN_TTL_MS),
+      },
+    });
+    return { user: this.toPublicUser(user), ...tokens };
   }
 
-  private async createSessionTokens(user: User, sessionId: string, metadata: SessionMetadata, isExistingSession: boolean): Promise<TokenPair> {
+  private async signTokens(user: User, sessionId: string) {
     const accessToken = await this.jwt.signAsync(
       { sub: user.id, sid: sessionId, role: user.role } satisfies AccessTokenPayload,
       { secret: this.accessSecret, expiresIn: ACCESS_TOKEN_TTL },
@@ -143,27 +170,7 @@ export class AuthService {
       { sub: user.id, sid: sessionId, jti: randomUUID() } satisfies RefreshTokenPayload,
       { secret: this.refreshSecret, expiresIn: '30d' },
     );
-    const expiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL_MS);
-
-    if (isExistingSession) {
-      await this.prisma.session.update({
-        where: { id: sessionId },
-        data: { refreshTokenHash: hashRefreshToken(refreshToken), lastUsedAt: new Date(), expiresAt, revokedAt: null },
-      });
-    } else {
-      await this.prisma.session.create({
-        data: {
-          id: sessionId,
-          userId: user.id,
-          refreshTokenHash: hashRefreshToken(refreshToken),
-          userAgent: metadata.userAgent,
-          ipAddress: metadata.ipAddress,
-          expiresAt,
-        },
-      });
-    }
-
-    return { user: this.toPublicUser(user), accessToken, refreshToken };
+    return { accessToken, refreshToken };
   }
 
   private toPublicUser(user: Pick<User, 'id' | 'email' | 'role' | 'timezone' | 'historyRetentionDays'>): PublicUser {

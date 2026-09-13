@@ -1,13 +1,17 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { DishScope, Role } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthUser } from '../auth/auth.types';
 import type { CreateDishInput, UpdateDishInput } from '../dishes/dishes.types';
+import { CloudinaryService } from '../storage/cloudinary.service';
 
 @Injectable()
 export class AdminService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly cloudinary?: CloudinaryService,
+  ) {}
 
   async assertAdmin(user: Pick<AuthUser, 'role'>) {
     if (user.role !== Role.ADMIN && user.role !== 'ADMIN') {
@@ -22,7 +26,15 @@ export class AdminService {
     });
   }
 
+  listUsers() {
+    return this.prisma.user.findMany({
+      select: { id: true, email: true, role: true },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
   createShared(input: CreateDishInput) {
+    this.assertManagedImage(input.imageUrl);
     return this.prisma.dish.create({
       data: {
         scope: DishScope.SHARED,
@@ -37,6 +49,7 @@ export class AdminService {
 
   async updateShared(dishId: string, input: UpdateDishInput) {
     await this.requireShared(dishId);
+    if (input.imageUrl) this.assertManagedImage(input.imageUrl);
     return this.prisma.dish.update({
       where: { id: dishId },
       data: {
@@ -53,34 +66,6 @@ export class AdminService {
     return this.prisma.dish.update({ where: { id: dishId }, data: { isActive: false, deletedAt: new Date() } });
   }
 
-  async copySharedDish(userId: string, dishId: string) {
-    const dish = await this.requireShared(dishId);
-    return this.prisma.dish.create({
-      data: {
-        scope: DishScope.PRIVATE,
-        ownerId: userId,
-        name: dish.name,
-        shortDescription: dish.shortDescription,
-        imageUrl: dish.imageUrl,
-        cloudinaryPublicId: dish.cloudinaryPublicId,
-      },
-    });
-  }
-
-  async excludeSharedDish(userId: string, dishId: string) {
-    await this.requireShared(dishId);
-    return this.prisma.personalExclusion.upsert({
-      where: { userId_dishId: { userId, dishId } },
-      create: { userId, dishId },
-      update: {},
-    });
-  }
-
-  async includeSharedDish(userId: string, dishId: string) {
-    await this.requireShared(dishId);
-    return this.prisma.personalExclusion.deleteMany({ where: { userId, dishId } });
-  }
-
   async resetPassword(userId: string, password: string) {
     const passwordHash = await argon2.hash(password, { type: argon2.argon2id });
     return this.prisma.user.update({ where: { id: userId }, data: { passwordHash } });
@@ -92,5 +77,11 @@ export class AdminService {
       throw new NotFoundException('Không tìm thấy món dùng chung');
     }
     return dish;
+  }
+
+  private assertManagedImage(imageUrl: string) {
+    if (this.cloudinary && !this.cloudinary.isManagedImageUrl(imageUrl)) {
+      throw new BadRequestException('Ảnh món ăn phải nằm trên Cloudinary đã cấu hình');
+    }
   }
 }

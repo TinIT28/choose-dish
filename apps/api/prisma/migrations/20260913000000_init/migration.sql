@@ -71,6 +71,8 @@ CREATE TABLE "Selection" (
     "mealPeriod" "MealPeriod" NOT NULL,
     "dishNameSnapshot" TEXT NOT NULL,
     "selectedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
     CONSTRAINT "Selection_pkey" PRIMARY KEY ("id")
 );
 

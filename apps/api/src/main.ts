@@ -6,6 +6,7 @@ import type { INestApplication } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { validateEnvironment } from './config/env';
+import { HttpExceptionFilter } from './common/http-exception.filter';
 
 validateEnvironment();
 
@@ -18,6 +19,7 @@ async function createApp(): Promise<INestApplication> {
     credentials: true,
   });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+  app.useGlobalFilters(new HttpExceptionFilter());
   await app.init();
   return app;
 }

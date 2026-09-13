@@ -17,7 +17,7 @@ describe('MealPeriodCard', () => {
     );
 
     expect(screen.getByText('Bún bò Huế')).toBeInTheDocument();
-    expect(screen.getByText('Đã chọn lúc 12:30')).toBeInTheDocument();
+    expect(screen.getByText('Đã chọn lúc 12:30:00')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Chọn lại' }));
     expect(onRandom).toHaveBeenCalledWith('LUNCH');
   });
