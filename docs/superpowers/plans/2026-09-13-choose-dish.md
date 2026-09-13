@@ -6,7 +6,7 @@
 
 **Architecture:** Use a pnpm workspace with `apps/web` and `apps/api`. The web app owns UI and client state; the NestJS API owns authorization, selection rules, Prisma persistence, and Cloudinary signing. Runtime data is stored in Neon PostgreSQL, refresh sessions are database-backed, and retention cleanup runs through a protected Vercel Cron endpoint.
 
-**Tech Stack:** Node.js 22, pnpm 11, React, Rsbuild, TypeScript, React Router, TanStack Query, React Hook Form, Zod, NestJS, Prisma, PostgreSQL/Neon, Cloudinary, Vitest, Testing Library, and Playwright.
+**Tech Stack:** Node.js 22, pnpm 11, React, Rsbuild, TypeScript, React Router, TanStack Query, Tailwind CSS, shadcn/ui, Radix UI, React Hook Form, Zod, NestJS, Prisma, PostgreSQL/Neon, Cloudinary, Vitest, Testing Library, and Playwright.
 
 **Spec:** `docs/superpowers/specs/2026-09-13-choose-dish-design.md`
 
@@ -29,7 +29,7 @@
 
 **Files:**
 - Create: `package.json`, `pnpm-workspace.yaml`, `.gitignore`, `.env.example`
-- Create: `apps/web/package.json`, `apps/web/rsbuild.config.ts`, `apps/web/tsconfig.json`, `apps/web/index.html`, `apps/web/src/main.tsx`, `apps/web/src/app/App.tsx`, `apps/web/src/app/app.css`
+- Create: `apps/web/package.json`, `apps/web/rsbuild.config.ts`, `apps/web/tsconfig.json`, `apps/web/index.html`, `apps/web/postcss.config.mjs`, `apps/web/src/main.tsx`, `apps/web/src/app/App.tsx`, `apps/web/src/app/app.css`, `apps/web/src/lib/utils.ts`, `apps/web/src/components/ui/button.tsx`, `apps/web/src/components/ui/card.tsx`
 - Create: `apps/api/package.json`, `apps/api/nest-cli.json`, `apps/api/tsconfig.json`, `apps/api/src/main.ts`, `apps/api/src/app.module.ts`, `apps/api/src/health/health.controller.ts`
 - Create: `apps/api/src/health/health.controller.spec.ts`, `apps/web/src/app/App.test.tsx`
 
@@ -39,7 +39,7 @@
 
 - [ ] **Step 1: Write the failing API health test.** Assert that a request to `/api/v1/health` returns HTTP 200 and the stable JSON keys through the Nest testing module.
 - [ ] **Step 2: Run the focused test to verify it fails.** Run `pnpm --filter api test -- health.controller.spec.ts`; expect failure because the workspace and controller do not exist.
-- [ ] **Step 3: Scaffold the workspace and minimal applications.** Configure pnpm workspace scripts, Rsbuild, NestJS, TypeScript, Vitest, environment loading, and a Prisma client placeholder without embedding secrets.
+- [ ] **Step 3: Scaffold the workspace and minimal applications.** Configure pnpm workspace scripts, Rsbuild, Tailwind CSS, local shadcn/ui primitives, NestJS, TypeScript, Vitest, environment loading, and a Prisma client placeholder without embedding secrets.
 - [ ] **Step 4: Implement the health seam.** Add a health service that performs a lightweight Prisma query and maps connection failure to a non-200 health response while keeping the endpoint under `/api/v1`.
 - [ ] **Step 5: Run focused tests and typechecks.** Run `pnpm --filter api test -- health.controller.spec.ts`, `pnpm --filter web test -- App.test.tsx`, and `pnpm typecheck`; expect all to pass.
 - [ ] **Step 6: Commit the foundation.** Run `git add package.json pnpm-workspace.yaml .gitignore .env.example apps docs/agents AGENTS.md .scratch/choose-dish` and commit `feat: bootstrap choose dish workspace`.
@@ -85,7 +85,7 @@
 - [ ] **Step 2: Run the focused tests to verify they fail.** Run `pnpm --filter api test -- dishes.service.spec.ts`; expect missing Dish model and endpoints.
 - [ ] **Step 3: Add the Dish schema and Cloudinary adapter seam.** Store URL plus public ID, validate JPG/PNG/WebP and 5 MB constraints, and expose a mockable image-storage interface.
 - [ ] **Step 4: Implement private dish CRUD and signed uploads.** Use authenticated ownership checks, preserve historical references on soft-delete, and remove newly uploaded assets if persistence fails.
-- [ ] **Step 5: Add the Vietnamese dish-management UI.** Support required image upload, progress/error/retry states, create/edit forms, active list, and soft-delete confirmation.
+- [ ] **Step 5: Add the Vietnamese dish-management UI.** Support required image upload, progress/error/retry states, create/edit forms, active list, and soft-delete confirmation using React Hook Form, Zod, Tailwind CSS, and shadcn/ui field/card primitives.
 - [ ] **Step 6: Run focused tests and typechecks.** Run API service/integration tests, `pnpm --filter web test -- DishForm.test.tsx`, and `pnpm typecheck`.
 - [ ] **Step 7: Commit the private catalog.** Run `git add apps/api apps/web` and commit `feat: add private dish catalog`.
 
@@ -130,7 +130,7 @@
 - [ ] **Step 2: Run the rule tests to verify they fail.** Run `pnpm --filter api test -- selection-rules.spec.ts`; expect missing rule module and Selection model.
 - [ ] **Step 3: Add Selection schema and pure selection rules.** Use explicit `MealPeriod`, calculate `localDate` from the user's IANA timezone, and keep candidate selection independent from HTTP.
 - [ ] **Step 4: Implement transactional random selection.** Combine private/shared pools, apply exclusions and fallback, then upsert the unique row with name snapshot and UTC timestamp.
-- [ ] **Step 5: Add the three-card dashboard.** Load today's selections, invoke random immediately, show selection time in the user's timezone, and render empty/error/loading states in Vietnamese.
+- [ ] **Step 5: Add the three-card dashboard.** Load today's selections, invoke random immediately, show selection time in the user's timezone, and render empty/error/loading states in Vietnamese with Tailwind CSS and shadcn/ui cards/buttons.
 - [ ] **Step 6: Run focused tests and typechecks.** Run rule/integration tests, `pnpm --filter web test -- MealPeriodCard.test.tsx`, and `pnpm typecheck`.
 - [ ] **Step 7: Commit daily selection.** Run `git add apps/api apps/web` and commit `feat: add daily meal selection`.
 

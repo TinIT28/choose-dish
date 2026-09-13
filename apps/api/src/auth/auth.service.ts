@@ -1,0 +1,178 @@
+import { createHash, randomUUID } from 'node:crypto';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import { Prisma, Role, type User } from '@prisma/client';
+import * as argon2 from 'argon2';
+import { PrismaService } from '../prisma/prisma.service';
+import {
+  type AccessTokenPayload,
+  type AuthUser,
+  type PublicUser,
+  type RefreshTokenPayload,
+  type SessionMetadata,
+  type TokenPair,
+} from './auth.types';
+
+const ACCESS_TOKEN_TTL = '15m';
+const REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const REFRESH_COOKIE_SECRET = 'development-refresh-secret-change-me';
+const ACCESS_COOKIE_SECRET = 'development-access-secret-change-me';
+
+function normalizeEmail(email: string) {
+  return email.trim().toLowerCase();
+}
+
+export function hashRefreshToken(token: string) {
+  return createHash('sha256').update(token).digest('hex');
+}
+
+@Injectable()
+export class AuthService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly jwt: JwtService,
+  ) {}
+
+  async register(email: string, password: string, metadata: SessionMetadata = {}): Promise<TokenPair> {
+    const normalizedEmail = normalizeEmail(email);
+    const passwordHash = await argon2.hash(password, { type: argon2.argon2id });
+
+    const user = await this.prisma.$transaction(
+      async (transaction) => {
+        const userCount = await transaction.user.count();
+        return transaction.user.create({
+          data: {
+            email: normalizedEmail,
+            passwordHash,
+            role: userCount === 0 ? Role.ADMIN : Role.USER,
+          },
+        });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+
+    return this.createSession(user, metadata);
+  }
+
+  async login(email: string, password: string, metadata: SessionMetadata = {}): Promise<TokenPair> {
+    const user = await this.prisma.user.findUnique({ where: { email: normalizeEmail(email) } });
+    if (!user || !(await argon2.verify(user.passwordHash, password))) {
+      throw new UnauthorizedException('Email hoặc mật khẩu không đúng');
+    }
+
+    return this.createSession(user, metadata);
+  }
+
+  async refresh(refreshToken: string): Promise<TokenPair> {
+    const payload = await this.verifyRefreshToken(refreshToken);
+    const session = await this.prisma.session.findUnique({
+      where: { id: payload.sid },
+      include: { user: true },
+    });
+
+    if (!session || session.userId !== payload.sub || session.revokedAt || session.expiresAt <= new Date()) {
+      throw new UnauthorizedException('Refresh token không còn hiệu lực');
+    }
+
+    if (session.refreshTokenHash !== hashRefreshToken(refreshToken)) {
+      await this.prisma.session.update({ where: { id: session.id }, data: { revokedAt: new Date() } });
+      throw new UnauthorizedException('Refresh token đã bị sử dụng lại');
+    }
+
+    return this.createSessionTokens(session.user, session.id, session.userAgent ? { userAgent: session.userAgent } : {}, true);
+  }
+
+  async revokeRefreshToken(refreshToken: string) {
+    try {
+      const payload = await this.verifyRefreshToken(refreshToken);
+      await this.prisma.session.updateMany({
+        where: { id: payload.sid, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+    } catch {
+      // Logout is intentionally idempotent when the cookie is expired or malformed.
+    }
+  }
+
+  async logoutAll(userId: string) {
+    await this.prisma.session.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } });
+  }
+
+  async verifyAccessToken(token: string): Promise<AuthUser> {
+    try {
+      const payload = await this.jwt.verifyAsync<AccessTokenPayload>(token, { secret: this.accessSecret });
+      const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
+      if (!user) {
+        throw new UnauthorizedException('Tài khoản không tồn tại');
+      }
+      return this.toPublicUser(user);
+    } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+      throw new UnauthorizedException('Access token không hợp lệ');
+    }
+  }
+
+  private get accessSecret() {
+    return process.env.JWT_ACCESS_SECRET ?? ACCESS_COOKIE_SECRET;
+  }
+
+  private get refreshSecret() {
+    return process.env.JWT_REFRESH_SECRET ?? REFRESH_COOKIE_SECRET;
+  }
+
+  private async verifyRefreshToken(refreshToken: string) {
+    try {
+      return await this.jwt.verifyAsync<RefreshTokenPayload>(refreshToken, { secret: this.refreshSecret });
+    } catch {
+      throw new UnauthorizedException('Refresh token không hợp lệ');
+    }
+  }
+
+  private async createSession(user: User, metadata: SessionMetadata): Promise<TokenPair> {
+    return this.createSessionTokens(user, randomUUID(), metadata, false);
+  }
+
+  private async createSessionTokens(user: User, sessionId: string, metadata: SessionMetadata, isExistingSession: boolean): Promise<TokenPair> {
+    const accessToken = await this.jwt.signAsync(
+      { sub: user.id, sid: sessionId, role: user.role } satisfies AccessTokenPayload,
+      { secret: this.accessSecret, expiresIn: ACCESS_TOKEN_TTL },
+    );
+    const refreshToken = await this.jwt.signAsync(
+      { sub: user.id, sid: sessionId, jti: randomUUID() } satisfies RefreshTokenPayload,
+      { secret: this.refreshSecret, expiresIn: '30d' },
+    );
+    const expiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL_MS);
+
+    if (isExistingSession) {
+      await this.prisma.session.update({
+        where: { id: sessionId },
+        data: { refreshTokenHash: hashRefreshToken(refreshToken), lastUsedAt: new Date(), expiresAt, revokedAt: null },
+      });
+    } else {
+      await this.prisma.session.create({
+        data: {
+          id: sessionId,
+          userId: user.id,
+          refreshTokenHash: hashRefreshToken(refreshToken),
+          userAgent: metadata.userAgent,
+          ipAddress: metadata.ipAddress,
+          expiresAt,
+        },
+      });
+    }
+
+    return { user: this.toPublicUser(user), accessToken, refreshToken };
+  }
+
+  private toPublicUser(user: Pick<User, 'id' | 'email' | 'role' | 'timezone' | 'historyRetentionDays'>): PublicUser {
+    return {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      timezone: user.timezone,
+      historyRetentionDays: user.historyRetentionDays,
+    };
+  }
+}

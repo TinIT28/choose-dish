@@ -204,6 +204,8 @@ If database persistence fails after an upload, the API attempts to delete the ne
 
 The dashboard presents three `MealPeriodCard` components for breakfast, lunch, and dinner. Each card shows the current dish, selection time in the user's timezone, and a random/select-again action. The first selection is persisted immediately; there is no separate confirmation step.
 
+The web app uses Tailwind CSS for styling and local shadcn/ui components built on Radix primitives. Forms use React Hook Form with Zod schemas so validation and accessible field states stay consistent across authentication, dish management, and settings screens.
+
 Routes are:
 
 - `/login` and `/register`.
