@@ -126,10 +126,12 @@ export function DailyMealFocus({
                   <SheetTitle>Danh sách món cho {period.title}</SheetTitle>
                   <SheetDescription>Danh sách này chỉ để tham khảo. Choose Dish sẽ chọn ngẫu nhiên khi bạn bấm nút chính.</SheetDescription>
                 </SheetHeader>
-                <ul className="mt-6 grid max-h-[55vh] gap-3 overflow-y-auto sm:grid-cols-2">
+                {/* grid-cols-1 pins the track to the container: an implicit `auto` track would
+                    size to max-content, and `truncate` makes that the whole untruncated line. */}
+                <ul className="mt-6 grid max-h-[55vh] grid-cols-1 gap-3 overflow-y-auto overflow-x-hidden sm:grid-cols-2">
                   {candidates.map((dish) => (
-                    <li key={dish.id} className="flex items-center gap-3 rounded-2xl border border-border bg-background p-2.5">
-                      <img className="size-16 rounded-xl object-cover" src={dish.imageUrl} alt="" loading="lazy" />
+                    <li key={dish.id} className="flex w-full min-w-0 items-center gap-3 rounded-2xl border border-border bg-background p-2.5">
+                      <img className="size-16 shrink-0 rounded-xl object-cover" src={dish.imageUrl} alt="" loading="lazy" />
                       <div className="min-w-0">
                         <p className="truncate text-sm font-semibold">{dish.name}</p>
                         {dish.shortDescription && <p className="mt-1 truncate text-xs text-muted-foreground">{dish.shortDescription}</p>}
