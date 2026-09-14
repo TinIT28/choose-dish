@@ -1,20 +1,13 @@
-import type { Role } from '@prisma/client';
+import type { PublicUser, Role } from '@choose-dish/contract';
 
-export interface PublicUser {
-  id: string;
-  email: string;
-  role: Role | string;
-  timezone: string;
-  historyRetentionDays: number;
-}
-
-export type AuthUser = PublicUser;
+export type { PublicUser } from '@choose-dish/contract';
 
 export interface SessionMetadata {
   userAgent?: string;
   ipAddress?: string;
 }
 
+/** Carries the refresh token; only RefreshSession is allowed to decide where it goes. */
 export interface TokenPair {
   user: PublicUser;
   accessToken: string;
@@ -24,7 +17,7 @@ export interface TokenPair {
 export interface AccessTokenPayload {
   sub: string;
   sid: string;
-  role: Role | string;
+  role: Role;
 }
 
 export interface RefreshTokenPayload {

@@ -1,0 +1,15 @@
+{
+  "name": "@choose-dish/contract",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Types for the JSON both apps exchange. Type-only: nothing here reaches a bundle.",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  }
+}

@@ -7,12 +7,14 @@ import type { Dish } from './api';
 
 interface DishCardProps {
   dish: Dish;
+  /** Only shared dishes carry a personal exclusion; private ones are always in use. */
+  isExcluded?: boolean;
   onEdit?: () => void;
   onDelete?: () => void;
   className?: string;
 }
 
-export function DishCard({ dish, onEdit, onDelete, className }: DishCardProps) {
+export function DishCard({ dish, isExcluded, onEdit, onDelete, className }: DishCardProps) {
   return (
     <Card className={cn('group overflow-hidden border-transparent bg-card shadow-[0_16px_38px_-28px_rgba(36,90,69,0.65)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_48px_-28px_rgba(36,90,69,0.75)]', className)}>
       <div className="relative overflow-hidden bg-muted">
@@ -42,7 +44,7 @@ export function DishCard({ dish, onEdit, onDelete, className }: DishCardProps) {
         )}
         <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 bg-gradient-to-t from-black/65 to-transparent px-4 pb-3 pt-12">
           <span className="flex items-center gap-1.5 text-xs font-semibold text-white"><UtensilsCrossed className="size-3.5" aria-hidden="true" /> Món ăn</span>
-          <span className="rounded-full bg-white/90 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-primary">{dish.isExcluded ? 'Đang ẩn' : 'Đang dùng'}</span>
+          <span className="rounded-full bg-white/90 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-primary">{isExcluded ? 'Đang ẩn' : 'Đang dùng'}</span>
         </div>
       </div>
       <CardContent className="p-5">

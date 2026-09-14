@@ -35,17 +35,17 @@ const resetPasswordSchema = z.object({
 type ResetPasswordValues = z.infer<typeof resetPasswordSchema>;
 
 export function AdminPage() {
-  const { accessToken, user, logout } = useAuth();
+  const { isSignedIn, user, logout } = useAuth();
   const [editingDish, setEditingDish] = useState<Dish | undefined>();
   const [dishDialogOpen, setDishDialogOpen] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const userId = user?.id ?? null;
-  const sharedQuery = useSharedDishesQuery(accessToken, userId);
-  const usersQuery = useAdminUsersQuery(accessToken, userId, user?.role === "ADMIN");
-  const createSharedDishMutation = useCreateSharedDishMutation(accessToken);
-  const updateSharedDishMutation = useUpdateSharedDishMutation(accessToken);
-  const deleteSharedDishMutation = useDeleteSharedDishMutation(accessToken);
-  const resetPasswordMutation = useResetAdminPasswordMutation(accessToken);
+  const sharedQuery = useSharedDishesQuery(userId);
+  const usersQuery = useAdminUsersQuery(userId, user?.role === "ADMIN");
+  const createSharedDishMutation = useCreateSharedDishMutation(userId);
+  const updateSharedDishMutation = useUpdateSharedDishMutation(userId);
+  const deleteSharedDishMutation = useDeleteSharedDishMutation(userId);
+  const resetPasswordMutation = useResetAdminPasswordMutation();
   const {
     control,
     register,
@@ -57,7 +57,7 @@ export function AdminPage() {
     defaultValues: { userId: "", password: "" },
   });
 
-  if (!accessToken || user?.role !== "ADMIN") {
+  if (!isSignedIn || !userId || user?.role !== "ADMIN") {
     return (
       <main className="mx-auto flex min-h-screen max-w-xl flex-col items-center justify-center gap-4 px-5 text-center">
         <h1 className="font-serif text-4xl">Khu vực dành cho admin</h1>
@@ -67,8 +67,6 @@ export function AdminPage() {
       </main>
     );
   }
-
-  const token = accessToken;
 
   async function resetPassword(values: ResetPasswordValues) {
     await resetPasswordMutation.mutateAsync(values);
@@ -111,8 +109,7 @@ export function AdminPage() {
             )}
             {sharedQuery.data && (
               <SharedDishList
-                accessToken={token}
-                userId={userId!}
+                userId={userId}
                 dishes={sharedQuery.data}
                 onEdit={(dish) => { setEditingDish(dish); setDishDialogOpen(true); }}
               />
@@ -196,7 +193,6 @@ export function AdminPage() {
         )}
         <DishDialog
           open={dishDialogOpen}
-          accessToken={token}
           initialDish={editingDish}
           title={editingDish ? "Sửa món dùng chung" : "Thêm món dùng chung"}
           saveDish={(input) => editingDish

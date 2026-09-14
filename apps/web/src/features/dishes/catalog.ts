@@ -2,7 +2,7 @@ import type { Dish } from './api';
 
 export type DishCatalogSort = 'name-asc' | 'name-desc';
 
-export function filterAndSortDishes(dishes: Dish[], search: string, sort: DishCatalogSort) {
+export function filterAndSortDishes<T extends Pick<Dish, 'name' | 'shortDescription'>>(dishes: T[], search: string, sort: DishCatalogSort): T[] {
   const normalizedSearch = search.trim().toLocaleLowerCase('vi');
 
   return [...dishes]

@@ -20,18 +20,18 @@ import { SharedDishList } from '../features/dishes/SharedDishList';
 import { useAuth } from '../features/auth/AuthProvider';
 
 export function DishesPage() {
-  const { accessToken, user, logout } = useAuth();
+  const { isSignedIn, user, logout } = useAuth();
   const [editingDish, setEditingDish] = useState<Dish | undefined>();
   const [dishDialogOpen, setDishDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<DishCatalogTab>('private');
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<DishCatalogSort>('name-asc');
   const userId = user?.id ?? null;
-  const dishesQuery = usePrivateDishesQuery(accessToken, userId);
-  const sharedQuery = useSharedDishesQuery(accessToken, userId);
-  const createDishMutation = useCreateDishMutation(accessToken, userId);
-  const updateDishMutation = useUpdateDishMutation(accessToken, userId);
-  const deleteDishMutation = useDeleteDishMutation(accessToken, userId);
+  const dishesQuery = usePrivateDishesQuery(userId);
+  const sharedQuery = useSharedDishesQuery(userId);
+  const createDishMutation = useCreateDishMutation(userId);
+  const updateDishMutation = useUpdateDishMutation(userId);
+  const deleteDishMutation = useDeleteDishMutation(userId);
   const privateDishes = useMemo(() => filterAndSortDishes(dishesQuery.data ?? [], search, sort), [dishesQuery.data, search, sort]);
   const sharedDishes = useMemo(() => filterAndSortDishes(sharedQuery.data ?? [], search, sort), [sharedQuery.data, search, sort]);
   const hasSearch = search.trim().length > 0;
@@ -41,7 +41,7 @@ export function DishesPage() {
     await deleteDishMutation.mutateAsync(dishId);
   }
 
-  if (!accessToken) {
+  if (!isSignedIn || !userId) {
     return (
       <main className="mx-auto flex min-h-screen max-w-xl flex-col items-center justify-center gap-4 px-5 text-center">
         <h1 className="font-serif text-4xl">Đăng nhập để quản lý món</h1>
@@ -116,12 +116,11 @@ export function DishesPage() {
             />
           )}
           {activeTab === 'shared' && sharedDishes.length > 0 && (
-            <SharedDishList accessToken={accessToken} userId={userId!} dishes={sharedDishes} />
+            <SharedDishList userId={userId} dishes={sharedDishes} />
           )}
         </section>
       <DishDialog
         open={dishDialogOpen}
-        accessToken={accessToken}
         initialDish={editingDish}
         title={editingDish ? 'Sửa món riêng' : 'Thêm món riêng'}
         onOpenChange={(open) => { setDishDialogOpen(open); if (!open) setEditingDish(undefined); }}

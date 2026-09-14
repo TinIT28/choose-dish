@@ -1,13 +1,13 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
-import { CloudinaryService } from '../storage/cloudinary.service';
+import { DishCatalogModule } from './dish-catalog.module';
 import { DishesController } from './dishes.controller';
 import { DishesService } from './dishes.service';
 
 @Module({
-  imports: [AuthModule],
+  imports: [AuthModule, DishCatalogModule],
   controllers: [DishesController],
-  providers: [DishesService, CloudinaryService],
+  providers: [DishesService],
   exports: [DishesService],
 })
 export class DishesModule {}

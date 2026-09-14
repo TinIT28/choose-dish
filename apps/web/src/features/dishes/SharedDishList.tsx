@@ -1,22 +1,21 @@
 import { useState } from 'react';
 import { Button } from '../../components/ui/button';
 import { CardContent } from '../../components/ui/card';
-import { type Dish } from './api';
+import { type Dish, type SharedDish } from './api';
 import { DishCard } from './DishCard';
 import { useCopySharedDishMutation, useToggleSharedDishMutation } from './queries';
 
 interface SharedDishListProps {
-  accessToken: string;
   userId: string;
-  dishes: Dish[];
+  dishes: SharedDish[];
   onEdit?: (dish: Dish) => void;
 }
 
-export function SharedDishList({ accessToken, userId, dishes, onEdit }: SharedDishListProps) {
+export function SharedDishList({ userId, dishes, onEdit }: SharedDishListProps) {
   const [message, setMessage] = useState<string | null>(null);
   const [busyDishId, setBusyDishId] = useState<string | null>(null);
-  const copyMutation = useCopySharedDishMutation(accessToken, userId);
-  const toggleMutation = useToggleSharedDishMutation(accessToken, userId);
+  const copyMutation = useCopySharedDishMutation(userId);
+  const toggleMutation = useToggleSharedDishMutation(userId);
 
   async function copy(dishId: string) {
     setBusyDishId(dishId);
@@ -31,7 +30,7 @@ export function SharedDishList({ accessToken, userId, dishes, onEdit }: SharedDi
     }
   }
 
-  async function toggleExclusion(dish: Dish) {
+  async function toggleExclusion(dish: SharedDish) {
     const { id: dishId, isExcluded } = dish;
     setBusyDishId(dishId);
     setMessage(null);
@@ -55,7 +54,7 @@ export function SharedDishList({ accessToken, userId, dishes, onEdit }: SharedDi
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {dishes.map((dish) => (
           <div key={dish.id} className="overflow-hidden rounded-3xl">
-            <DishCard dish={dish} className="rounded-b-none" onEdit={onEdit ? () => onEdit(dish) : undefined} />
+            <DishCard dish={dish} isExcluded={dish.isExcluded} className="rounded-b-none" onEdit={onEdit ? () => onEdit(dish) : undefined} />
             <CardContent className="flex gap-2 border-x border-b border-border bg-card p-4">
               <Button className="flex-1" size="sm" disabled={busyDishId === dish.id} onClick={() => void copy(dish.id)}>
                 Sao chép

@@ -16,18 +16,18 @@ import {
   requestUploadSignature,
   updateDish,
   uploadImageToCloudinary,
+  type CreateDishInput,
   type Dish,
 } from "./api";
 
 interface DishFormProps {
-  accessToken: string;
   onSaved: (dish: Dish) => void;
   initialDish?: Dish;
-  saveDish?: (input: Omit<Dish, 'id' | 'isActive'>) => Promise<Dish>;
+  saveDish?: (input: CreateDishInput) => Promise<Dish>;
   title?: string;
 }
 
-export function DishForm({ accessToken, onSaved, initialDish, saveDish, title = 'Thêm món riêng' }: DishFormProps) {
+export function DishForm({ onSaved, initialDish, saveDish, title = 'Thêm món riêng' }: DishFormProps) {
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
   const formSchema = z.object({
@@ -58,7 +58,7 @@ export function DishForm({ accessToken, onSaved, initialDish, saveDish, title = 
     setUploadProgress(file ? 0 : null);
     try {
       const upload = file
-        ? await uploadImageToCloudinary(await requestUploadSignature(accessToken), file, setUploadProgress)
+        ? await uploadImageToCloudinary(await requestUploadSignature(), file, setUploadProgress)
         : null;
       const input = {
         name: values.name,
@@ -66,7 +66,7 @@ export function DishForm({ accessToken, onSaved, initialDish, saveDish, title = 
         imageUrl: upload?.secure_url ?? initialDish?.imageUrl ?? '',
         cloudinaryPublicId: upload?.public_id ?? initialDish?.cloudinaryPublicId ?? '',
       };
-      const save = saveDish ?? ((nextInput: Omit<Dish, 'id' | 'isActive'>) => initialDish ? updateDish(accessToken, initialDish.id, nextInput) : createDish(accessToken, nextInput));
+      const save = saveDish ?? ((nextInput: CreateDishInput) => (initialDish ? updateDish(initialDish.id, nextInput) : createDish(nextInput)));
       const dish = await save(input);
       onSaved(dish);
       reset(initialDish ? { name: dish.name, shortDescription: dish.shortDescription } : undefined);

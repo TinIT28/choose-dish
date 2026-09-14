@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { Dish } from '../dishes/api';
 import type { Selection } from './api';
-import { DailyMealFocus, getCurrentMealPeriod, getNextMealPeriod } from './DailyMealFocus';
+import { DailyMealFocus } from './DailyMealFocus';
 
 const candidates: Dish[] = [
   { id: 'dish-1', name: 'Bún bò Huế', shortDescription: 'Cay nhẹ', imageUrl: '/bun-bo.jpg', cloudinaryPublicId: 'bun-bo', isActive: true },
@@ -20,19 +20,6 @@ const lunchSelection: Selection = {
 };
 
 describe('DailyMealFocus', () => {
-  it('maps local time to the meal period the user is currently choosing', () => {
-    expect(getCurrentMealPeriod(new Date('2026-09-13T01:00:00.000Z'), 'Asia/Ho_Chi_Minh')).toBe('BREAKFAST');
-    expect(getCurrentMealPeriod(new Date('2026-09-13T05:00:00.000Z'), 'Asia/Ho_Chi_Minh')).toBe('LUNCH');
-    expect(getCurrentMealPeriod(new Date('2026-09-13T07:00:00.000Z'), 'Asia/Ho_Chi_Minh')).toBe('LUNCH');
-    expect(getCurrentMealPeriod(new Date('2026-09-13T10:00:00.000Z'), 'Asia/Ho_Chi_Minh')).toBe('DINNER');
-  });
-
-  it('focuses the next unselected meal in the current time window', () => {
-    expect(getNextMealPeriod(new Date('2026-09-13T05:00:00.000Z'), [
-      { ...lunchSelection, mealPeriod: 'BREAKFAST' },
-    ], 'Asia/Ho_Chi_Minh')).toBe('LUNCH');
-  });
-
   it('keeps one primary random action and opens candidates in a sheet', async () => {
     const user = userEvent.setup();
     const onRandom = vi.fn();

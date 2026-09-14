@@ -6,10 +6,10 @@ import { HistoryTimeline } from '../features/history/HistoryTimeline';
 import { useHistoryQuery } from '../features/history/queries';
 
 export function HistoryPage() {
-  const { accessToken, user, logout } = useAuth();
-  const historyQuery = useHistoryQuery(accessToken, user?.id ?? null);
+  const { isSignedIn, user, logout } = useAuth();
+  const historyQuery = useHistoryQuery(user?.id ?? null);
 
-  if (!accessToken || !user) {
+  if (!isSignedIn || !user) {
     return <main className="mx-auto flex min-h-screen items-center justify-center px-5"><Button asChild><Link to="/login">Đăng nhập để xem lịch sử</Link></Button></main>;
   }
 

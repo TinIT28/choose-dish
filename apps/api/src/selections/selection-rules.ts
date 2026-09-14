@@ -1,48 +1,32 @@
+import type { LocalDate } from './local-date';
+
 export interface CandidateDish {
   id: string;
 }
 
 export interface RecentSelection {
-  localDate: string;
+  localDate: LocalDate;
   dishId: string;
 }
 
-export function getLocalDate(instant: Date, timezone: string) {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: timezone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(instant);
-  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-  return `${values.year}-${values.month}-${values.day}`;
-}
-
-export function getRecentLocalDates(currentLocalDate: string) {
-  return getLocalDates(currentLocalDate, 7);
-}
-
-export function getLocalDates(currentLocalDate: string, count: number) {
-  const [year, month, day] = currentLocalDate.split('-').map(Number);
-  return Array.from({ length: count }, (_, offset) => {
-    const date = new Date(Date.UTC(year, month - 1, day - offset));
-    return date.toISOString().slice(0, 10);
-  });
-}
-
+/**
+ * Picks a dish the user has not had inside the no-repeat window.
+ *
+ * When every candidate is in the window the window is relaxed one day at a time,
+ * oldest first, so a small catalog still returns something rather than failing.
+ */
 export function selectCandidateDish(
   dishes: CandidateDish[],
   recentSelections: RecentSelection[],
-  currentLocalDate: string,
+  noRepeatWindow: LocalDate[],
   random: () => number = Math.random,
 ) {
   if (dishes.length === 0) {
     throw new Error('NO_AVAILABLE_DISH');
   }
 
-  const recentDates = getRecentLocalDates(currentLocalDate);
-  for (let relaxedDates = 0; relaxedDates <= recentDates.length; relaxedDates += 1) {
-    const datesToExclude = new Set(recentDates.slice(0, recentDates.length - relaxedDates));
+  for (let relaxedDates = 0; relaxedDates <= noRepeatWindow.length; relaxedDates += 1) {
+    const datesToExclude = new Set(noRepeatWindow.slice(0, noRepeatWindow.length - relaxedDates));
     const excludedDishIds = new Set(
       recentSelections.filter((selection) => datesToExclude.has(selection.localDate)).map((selection) => selection.dishId),
     );

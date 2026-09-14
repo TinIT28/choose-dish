@@ -1,5 +1,6 @@
 {
   "lockfileVersion": 1,
+  "configVersion": 0,
   "workspaces": {
     "": {
       "name": "choose-dish",
@@ -16,6 +17,7 @@
     "apps/api": {
       "name": "@choose-dish/api",
       "dependencies": {
+        "@choose-dish/contract": "workspace:*",
         "@nestjs/common": "^11.0.0",
         "@nestjs/config": "^4.0.2",
         "@nestjs/core": "^11.0.0",
@@ -43,6 +45,7 @@
     "apps/web": {
       "name": "@choose-dish/web",
       "dependencies": {
+        "@choose-dish/contract": "workspace:*",
         "@hookform/resolvers": "^5.1.1",
         "@radix-ui/react-avatar": "^1.2.6",
         "@radix-ui/react-dialog": "^1.1.23",
@@ -78,6 +81,10 @@
         "vitest": "^3.2.4",
       },
     },
+    "packages/contract": {
+      "name": "@choose-dish/contract",
+      "version": "0.0.0",
+    },
   },
   "trustedDependencies": [
     "core-js",
@@ -109,6 +116,8 @@
     "@borewit/text-codec": ["@borewit/text-codec@0.2.2", "", {}, "sha512-DDaRehssg1aNrH4+2hnj1B7vnUGEjU6OIlyRdkMd0aUdIUvKXrJfXsy8LVtXAy7DRvYVluWbMspsRhz2lcW0mQ=="],
 
     "@choose-dish/api": ["@choose-dish/api@workspace:apps/api"],
+
+    "@choose-dish/contract": ["@choose-dish/contract@workspace:packages/contract"],
 
     "@choose-dish/web": ["@choose-dish/web@workspace:apps/web"],
 

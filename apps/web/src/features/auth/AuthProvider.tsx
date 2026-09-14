@@ -1,17 +1,10 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import {
-  loginRequest,
-  logoutAllRequest,
-  logoutRequest,
-  refreshRequest,
-  registerRequest,
-  registerRefreshHandler,
-  type AuthUser,
-} from './api';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { refreshAccessToken, setAccessToken, setRefreshHandler } from '../../lib/http';
+import { loginRequest, logoutAllRequest, logoutRequest, refreshRequest, registerRequest, type PublicUser } from './api';
 
 interface AuthContextValue {
-  user: AuthUser | null;
-  accessToken: string | null;
+  user: PublicUser | null;
+  isSignedIn: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string) => Promise<void>;
@@ -23,46 +16,36 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [user, setUser] = useState<PublicUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const refreshPromiseRef = useRef<Promise<string | null> | null>(null);
 
-  const setSession = useCallback((nextUser: AuthUser, nextAccessToken: string) => {
-    setUser(nextUser);
+  const setSession = useCallback((nextUser: PublicUser, nextAccessToken: string) => {
     setAccessToken(nextAccessToken);
+    setUser(nextUser);
   }, []);
 
   const clearSession = useCallback(() => {
-    setUser(null);
     setAccessToken(null);
+    setUser(null);
   }, []);
 
-  const refreshAccessToken = useCallback(async () => {
-    if (!refreshPromiseRef.current) {
-      refreshPromiseRef.current = (async () => {
-        try {
-          const response = await refreshRequest();
-          setSession(response.user, response.accessToken);
-          return response.accessToken;
-        } catch {
-          clearSession();
-          return null;
-        }
-      })().finally(() => {
-        refreshPromiseRef.current = null;
-      });
-    }
-
-    return refreshPromiseRef.current;
+  // The HTTP module owns the single-flight, so a 401 retry and the restore on
+  // boot share one refresh request.
+  useEffect(() => {
+    setRefreshHandler(async () => {
+      try {
+        const response = await refreshRequest();
+        setSession(response.user, response.accessToken);
+        return response.accessToken;
+      } catch {
+        clearSession();
+        return null;
+      }
+    });
+    return () => setRefreshHandler(null);
   }, [clearSession, setSession]);
 
-  const refresh = useCallback(async () => Boolean(await refreshAccessToken()), [refreshAccessToken]);
-
-  useEffect(() => {
-    registerRefreshHandler(refreshAccessToken);
-    return () => registerRefreshHandler(null);
-  }, [refreshAccessToken]);
+  const refresh = useCallback(async () => Boolean(await refreshAccessToken()), []);
 
   useEffect(() => {
     void refresh().finally(() => setIsLoading(false));
@@ -71,7 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
-      accessToken,
+      isSignedIn: user !== null,
       isLoading,
       login: async (email, password) => {
         const response = await loginRequest(email, password);
@@ -87,13 +70,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         clearSession();
       },
       logoutAll: async () => {
-        if (accessToken) {
-          await logoutAllRequest(accessToken);
-        }
+        await logoutAllRequest().catch(() => undefined);
         clearSession();
       },
     }),
-    [accessToken, clearSession, isLoading, refresh, setSession, user],
+    [clearSession, isLoading, refresh, setSession, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

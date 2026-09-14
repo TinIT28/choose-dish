@@ -6,117 +6,120 @@ import {
   deleteDish,
   deleteSharedDish,
   excludeSharedDish,
-  includeSharedDish,
   listAdminUsers,
   listDishes,
   listSharedDishes,
   resetAdminPassword,
+  unexcludeSharedDish,
   updateDish,
   updateSharedDish,
-  type Dish,
+  type CreateDishInput,
+  type UpdateDishInput,
 } from './api';
 import { queryKeys } from '../queryKeys';
 
-type DishInput = Omit<Dish, 'id' | 'isActive'>;
-
-function requireToken(accessToken: string | null) {
-  if (!accessToken) throw new Error('Bạn cần đăng nhập để thực hiện thao tác này.');
-  return accessToken;
+/** Every shared-dish reader invalidates the same key, so the admin hooks need the viewer too. */
+function invalidateShared(queryClient: ReturnType<typeof useQueryClient>, userId: string | null) {
+  return userId ? queryClient.invalidateQueries({ queryKey: queryKeys.dishes.shared(userId) }) : undefined;
 }
 
-export function usePrivateDishesQuery(accessToken: string | null, userId: string | null) {
+function invalidatePrivate(queryClient: ReturnType<typeof useQueryClient>, userId: string | null) {
+  return userId ? queryClient.invalidateQueries({ queryKey: queryKeys.dishes.private(userId) }) : undefined;
+}
+
+export function usePrivateDishesQuery(userId: string | null) {
   return useQuery({
     queryKey: queryKeys.dishes.private(userId ?? 'anonymous'),
-    queryFn: () => listDishes(requireToken(accessToken)),
-    enabled: Boolean(accessToken && userId),
+    queryFn: listDishes,
+    enabled: Boolean(userId),
   });
 }
 
-export function useSharedDishesQuery(accessToken: string | null, userId: string | null) {
+export function useSharedDishesQuery(userId: string | null) {
   return useQuery({
     queryKey: queryKeys.dishes.shared(userId ?? 'anonymous'),
-    queryFn: () => listSharedDishes(requireToken(accessToken)),
-    enabled: Boolean(accessToken && userId),
+    queryFn: listSharedDishes,
+    enabled: Boolean(userId),
   });
 }
 
-export function useAdminUsersQuery(accessToken: string | null, adminId: string | null, enabled: boolean) {
+export function useAdminUsersQuery(adminId: string | null, enabled: boolean) {
   return useQuery({
     queryKey: queryKeys.adminUsers(adminId ?? 'anonymous'),
-    queryFn: () => listAdminUsers(requireToken(accessToken)),
-    enabled: Boolean(accessToken && adminId && enabled),
+    queryFn: listAdminUsers,
+    enabled: Boolean(adminId && enabled),
   });
 }
 
-export function useCreateDishMutation(accessToken: string | null, userId: string | null) {
+export function useCreateDishMutation(userId: string | null) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: DishInput) => createDish(requireToken(accessToken), input),
-    onSuccess: () => userId ? queryClient.invalidateQueries({ queryKey: queryKeys.dishes.private(userId) }) : undefined,
+    mutationFn: (input: CreateDishInput) => createDish(input),
+    onSuccess: () => invalidatePrivate(queryClient, userId),
   });
 }
 
-export function useUpdateDishMutation(accessToken: string | null, userId: string | null) {
+export function useUpdateDishMutation(userId: string | null) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ dishId, input }: { dishId: string; input: DishInput }) => updateDish(requireToken(accessToken), dishId, input),
-    onSuccess: () => userId ? queryClient.invalidateQueries({ queryKey: queryKeys.dishes.private(userId) }) : undefined,
+    mutationFn: ({ dishId, input }: { dishId: string; input: UpdateDishInput }) => updateDish(dishId, input),
+    onSuccess: () => invalidatePrivate(queryClient, userId),
   });
 }
 
-export function useDeleteDishMutation(accessToken: string | null, userId: string | null) {
+export function useDeleteDishMutation(userId: string | null) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (dishId: string) => deleteDish(requireToken(accessToken), dishId),
-    onSuccess: () => userId ? queryClient.invalidateQueries({ queryKey: queryKeys.dishes.private(userId) }) : undefined,
+    mutationFn: deleteDish,
+    onSuccess: () => invalidatePrivate(queryClient, userId),
   });
 }
 
-export function useCopySharedDishMutation(accessToken: string | null, userId: string | null) {
+export function useCopySharedDishMutation(userId: string | null) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (dishId: string) => copySharedDish(requireToken(accessToken), dishId),
-    onSuccess: () => userId ? queryClient.invalidateQueries({ queryKey: queryKeys.dishes.private(userId) }) : undefined,
+    mutationFn: copySharedDish,
+    onSuccess: () => invalidatePrivate(queryClient, userId),
   });
 }
 
-export function useToggleSharedDishMutation(accessToken: string | null, userId: string | null) {
+/** Adding and removing a personal exclusion answer with different bodies; neither caller reads them. */
+export function useToggleSharedDishMutation(userId: string | null) {
   const queryClient = useQueryClient();
-  return useMutation<{ id: string } | { count: number }, Error, { dishId: string; isExcluded?: boolean }>({
-    mutationFn: ({ dishId, isExcluded }: { dishId: string; isExcluded?: boolean }) => {
-      const token = requireToken(accessToken);
-      return isExcluded ? includeSharedDish(token, dishId) : excludeSharedDish(token, dishId);
+  return useMutation({
+    mutationFn: async ({ dishId, isExcluded }: { dishId: string; isExcluded: boolean }) => {
+      await (isExcluded ? unexcludeSharedDish(dishId) : excludeSharedDish(dishId));
     },
-    onSuccess: () => userId ? queryClient.invalidateQueries({ queryKey: queryKeys.dishes.shared(userId) }) : undefined,
+    onSuccess: () => invalidateShared(queryClient, userId),
   });
 }
 
-export function useCreateSharedDishMutation(accessToken: string | null) {
+export function useCreateSharedDishMutation(userId: string | null) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: DishInput) => createSharedDish(requireToken(accessToken), input),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['dishes', 'shared'] }),
+    mutationFn: (input: CreateDishInput) => createSharedDish(input),
+    onSuccess: () => invalidateShared(queryClient, userId),
   });
 }
 
-export function useUpdateSharedDishMutation(accessToken: string | null) {
+export function useUpdateSharedDishMutation(userId: string | null) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ dishId, input }: { dishId: string; input: Partial<DishInput> }) => updateSharedDish(requireToken(accessToken), dishId, input),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['dishes', 'shared'] }),
+    mutationFn: ({ dishId, input }: { dishId: string; input: UpdateDishInput }) => updateSharedDish(dishId, input),
+    onSuccess: () => invalidateShared(queryClient, userId),
   });
 }
 
-export function useDeleteSharedDishMutation(accessToken: string | null) {
+export function useDeleteSharedDishMutation(userId: string | null) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (dishId: string) => deleteSharedDish(requireToken(accessToken), dishId),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['dishes', 'shared'] }),
+    mutationFn: deleteSharedDish,
+    onSuccess: () => invalidateShared(queryClient, userId),
   });
 }
 
-export function useResetAdminPasswordMutation(accessToken: string | null) {
+export function useResetAdminPasswordMutation() {
   return useMutation({
-    mutationFn: ({ userId, password }: { userId: string; password: string }) => resetAdminPassword(requireToken(accessToken), userId, password),
+    mutationFn: ({ userId, password }: { userId: string; password: string }) => resetAdminPassword(userId, password),
   });
 }

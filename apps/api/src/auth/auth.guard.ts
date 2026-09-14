@@ -1,11 +1,13 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import type { Request } from 'express';
 import { AuthService } from './auth.service';
-import type { AuthUser } from './auth.types';
+import type { PublicUser } from './auth.types';
 
 export interface AuthenticatedRequest extends Request {
-  user: AuthUser;
+  user: PublicUser;
 }
+
+export const SIGN_IN_REQUIRED = 'Yêu cầu đăng nhập';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
@@ -16,7 +18,7 @@ export class AuthGuard implements CanActivate {
     const authorization = request.header('authorization');
     const [scheme, token] = authorization?.split(' ') ?? [];
     if (scheme?.toLowerCase() !== 'bearer' || !token) {
-      throw new UnauthorizedException('Yêu cầu đăng nhập');
+      throw new UnauthorizedException(SIGN_IN_REQUIRED);
     }
 
     request.user = await this.authService.verifyAccessToken(token);

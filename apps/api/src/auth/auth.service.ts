@@ -3,10 +3,12 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Prisma, Role, type User } from '@prisma/client';
 import * as argon2 from 'argon2';
+import { AppConfig } from '../config/app-config';
 import { PrismaService } from '../prisma/prisma.service';
+import { toPublicUser } from '../users/user-view';
+import { REFRESH_TOKEN_TTL_MS } from './refresh-session';
 import {
   type AccessTokenPayload,
-  type AuthUser,
   type PublicUser,
   type RefreshTokenPayload,
   type SessionMetadata,
@@ -14,12 +16,6 @@ import {
 } from './auth.types';
 
 const ACCESS_TOKEN_TTL = '15m';
-const REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
-function getSecret(name: string) {
-  const configured = process.env[name];
-  if (configured) return configured;
-  throw new Error(`Thiếu biến môi trường bắt buộc: ${name}`);
-}
 
 function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
@@ -34,6 +30,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
+    private readonly config: AppConfig,
   ) {}
 
   async register(email: string, password: string, metadata: SessionMetadata = {}): Promise<TokenPair> {
@@ -95,7 +92,7 @@ export class AuthService {
       throw new UnauthorizedException('Refresh token đã bị sử dụng lại');
     }
 
-    return { user: this.toPublicUser(session.user), ...tokens };
+    return { user: toPublicUser(session.user), ...tokens };
   }
 
   async revokeRefreshToken(refreshToken: string) {
@@ -114,14 +111,14 @@ export class AuthService {
     await this.prisma.session.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } });
   }
 
-  async verifyAccessToken(token: string): Promise<AuthUser> {
+  async verifyAccessToken(token: string): Promise<PublicUser> {
     try {
       const payload = await this.jwt.verifyAsync<AccessTokenPayload>(token, { secret: this.accessSecret });
       const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
       if (!user) {
         throw new UnauthorizedException('Tài khoản không tồn tại');
       }
-      return this.toPublicUser(user);
+      return toPublicUser(user);
     } catch (error) {
       if (error instanceof UnauthorizedException) {
         throw error;
@@ -131,11 +128,11 @@ export class AuthService {
   }
 
   private get accessSecret() {
-    return getSecret('JWT_ACCESS_SECRET');
+    return this.config.jwtAccessSecret;
   }
 
   private get refreshSecret() {
-    return getSecret('JWT_REFRESH_SECRET');
+    return this.config.jwtRefreshSecret;
   }
 
   private async verifyRefreshToken(refreshToken: string) {
@@ -159,7 +156,7 @@ export class AuthService {
         expiresAt: new Date(Date.now() + REFRESH_TOKEN_TTL_MS),
       },
     });
-    return { user: this.toPublicUser(user), ...tokens };
+    return { user: toPublicUser(user), ...tokens };
   }
 
   private async signTokens(user: User, sessionId: string) {
@@ -169,18 +166,8 @@ export class AuthService {
     );
     const refreshToken = await this.jwt.signAsync(
       { sub: user.id, sid: sessionId, jti: randomUUID() } satisfies RefreshTokenPayload,
-      { secret: this.refreshSecret, expiresIn: '30d' },
+      { secret: this.refreshSecret, expiresIn: REFRESH_TOKEN_TTL_MS / 1000 },
     );
     return { accessToken, refreshToken };
-  }
-
-  private toPublicUser(user: Pick<User, 'id' | 'email' | 'role' | 'timezone' | 'historyRetentionDays'>): PublicUser {
-    return {
-      id: user.id,
-      email: user.email,
-      role: user.role,
-      timezone: user.timezone,
-      historyRetentionDays: user.historyRetentionDays,
-    };
   }
 }

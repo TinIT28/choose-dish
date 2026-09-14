@@ -5,18 +5,17 @@ import { ValidationPipe } from '@nestjs/common';
 import type { INestApplication } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { validateEnvironment } from './config/env';
-import { normalizeCorsOrigin } from './config/cors';
+import { appConfig } from './config/app-config';
 import { HttpExceptionFilter } from './common/http-exception.filter';
 
-validateEnvironment();
+const config = appConfig();
 
 async function createApp(): Promise<INestApplication> {
   const app = await NestFactory.create(AppModule);
-  app.setGlobalPrefix('api/v1');
+  app.setGlobalPrefix(config.apiPrefix);
   app.use(cookieParser());
   app.enableCors({
-    origin: normalizeCorsOrigin(process.env.FRONTEND_ORIGIN),
+    origin: config.frontendOrigin,
     credentials: true,
   });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
@@ -33,8 +32,8 @@ export async function handler(request: Request, response: Response) {
   return app.getHttpAdapter().getInstance()(request, response);
 }
 
-if (process.env.VERCEL !== '1') {
-  void createApp().then((app) => app.listen(process.env.PORT ?? 3001));
+if (!config.runsOnVercel) {
+  void createApp().then((app) => app.listen(config.port));
 }
 
 export default handler;

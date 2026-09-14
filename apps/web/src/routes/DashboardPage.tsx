@@ -1,28 +1,28 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { AppHeader } from '../components/AppHeader';
 import { Check, Circle } from 'lucide-react';
 import { useAuth } from '../features/auth/AuthProvider';
-import { usePrivateDishesQuery, useSharedDishesQuery } from '../features/dishes/queries';
 import { mealPeriodLabels, type MealPeriod } from '../features/selections/api';
-import { getAvailableDishes } from '../features/selections/availableDishes';
-import { DailyMealFocus, getCurrentMealPeriod } from '../features/selections/DailyMealFocus';
+import { DailyMealFocus } from '../features/selections/DailyMealFocus';
 import { MealPeriodCard } from '../features/selections/MealPeriodCard';
-import { useRandomSelectionMutation, useTodaySelectionsQuery } from '../features/selections/queries';
-
-const mealPeriods: MealPeriod[] = ['BREAKFAST', 'LUNCH', 'DINNER'];
+import { useRandomSelectionMutation } from '../features/selections/queries';
+import { mealPeriods } from '../features/selections/selection-day';
+import { useSelectionDay } from '../features/selections/useSelectionDay';
 
 export function DashboardPage() {
-  const { accessToken, user, logout } = useAuth();
+  const { isSignedIn, user, logout } = useAuth();
   const [busyPeriod, setBusyPeriod] = useState<MealPeriod | null>(null);
   const [error, setError] = useState<string | null>(null);
   const userId = user?.id ?? null;
-  const selectionsQuery = useTodaySelectionsQuery(accessToken, userId);
-  const privateDishesQuery = usePrivateDishesQuery(accessToken, userId);
-  const sharedDishesQuery = useSharedDishesQuery(accessToken, userId);
-  const randomSelectionMutation = useRandomSelectionMutation(accessToken, userId);
+  // Rounded to the minute so the focused meal follows the clock without rebuilding
+  // the day on every render.
+  const minute = Math.floor(Date.now() / 60_000);
+  const now = useMemo(() => new Date(minute * 60_000), [minute]);
+  const day = useSelectionDay(userId, user?.timezone, now);
+  const randomSelectionMutation = useRandomSelectionMutation(userId);
 
   async function choose(mealPeriod: MealPeriod) {
-    if (!accessToken) return;
+    if (!isSignedIn) return;
     setBusyPeriod(mealPeriod);
     setError(null);
     try {
@@ -34,21 +34,13 @@ export function DashboardPage() {
     }
   }
 
-  const selections = selectionsQuery.data ?? [];
-  const availableDishes = getAvailableDishes([
-    ...(privateDishesQuery.data ?? []),
-    ...(sharedDishesQuery.data ?? []),
-  ]);
-  const timezone = user?.timezone ?? 'Asia/Ho_Chi_Minh';
-  const completedMeals = selections.length;
-  const isDayComplete = completedMeals === mealPeriods.length;
-  const focusMealPeriod = isDayComplete ? 'DINNER' : getCurrentMealPeriod(new Date(), timezone);
-  const focusSelection = selections.find((selection) => selection.mealPeriod === focusMealPeriod);
+  const { candidates, byMealPeriod, focusMealPeriod, focusSelection, completedMeals, isDayComplete, timezone } = day;
   const todayLabel = new Intl.DateTimeFormat('vi-VN', {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
-  }).format(new Date());
+    timeZone: timezone,
+  }).format(now);
 
   return (
     <div className="min-h-screen">
@@ -69,13 +61,13 @@ export function DashboardPage() {
           </div>
         </header>
 
-      {selectionsQuery.isPending && accessToken && <p className="mb-4 text-sm text-muted-foreground">Đang tải lựa chọn hôm nay…</p>}
+      {day.isPending && isSignedIn && <p className="mb-4 text-sm text-muted-foreground">Đang tải lựa chọn hôm nay…</p>}
       {error && <p role="alert" className="mb-4 text-sm text-red-700">{error}</p>}
-        {privateDishesQuery.isError || sharedDishesQuery.isError ? <p className="mb-4 text-sm text-amber-800">Một phần kho món chưa tải được. Bạn vẫn có thể xem các món đã có.</p> : null}
+        {day.hasCatalogError ? <p className="mb-4 text-sm text-amber-800">Một phần kho món chưa tải được. Bạn vẫn có thể xem các món đã có.</p> : null}
         <section className="space-y-5 lg:hidden" aria-label="Bữa hiện tại">
           <DailyMealFocus
             mealPeriod={focusMealPeriod}
-            candidates={availableDishes}
+            candidates={candidates}
             selection={focusSelection}
             timezone={timezone}
             isLoading={busyPeriod === focusMealPeriod}
@@ -93,7 +85,7 @@ export function DashboardPage() {
             </div>
             <div className="grid gap-2">
               {mealPeriods.map((mealPeriod) => {
-                const selection = selections.find((item) => item.mealPeriod === mealPeriod);
+                const selection = byMealPeriod[mealPeriod];
                 const isCurrent = mealPeriod === focusMealPeriod;
                 const period = mealPeriodLabels[mealPeriod];
 
@@ -119,8 +111,8 @@ export function DashboardPage() {
             <MealPeriodCard
               key={mealPeriod}
               mealPeriod={mealPeriod}
-              candidates={availableDishes}
-              selection={selections.find((selection) => selection.mealPeriod === mealPeriod)}
+              candidates={candidates}
+              selection={byMealPeriod[mealPeriod]}
               timezone={timezone}
               isLoading={busyPeriod === mealPeriod}
               isCurrent={mealPeriod === focusMealPeriod}
@@ -128,7 +120,7 @@ export function DashboardPage() {
             />
           ))}
         </section>
-        {!accessToken && <p className="mt-8 text-center text-sm text-muted-foreground">Đăng nhập để lưu lựa chọn và xem lại lịch sử món ăn.</p>}
+        {!isSignedIn && <p className="mt-8 text-center text-sm text-muted-foreground">Đăng nhập để lưu lựa chọn và xem lại lịch sử món ăn.</p>}
       </main>
     </div>
   );

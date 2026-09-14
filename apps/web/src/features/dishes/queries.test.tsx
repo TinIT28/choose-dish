@@ -32,7 +32,7 @@ describe('dish mutations', () => {
     const queryClient = new QueryClient();
     const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries');
     const { result } = renderHook(
-      () => useCreateDishMutation('access-token', 'user-1'),
+      () => useCreateDishMutation('user-1'),
       { wrapper: createWrapper(queryClient) },
     );
 

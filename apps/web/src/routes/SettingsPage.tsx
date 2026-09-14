@@ -1,5 +1,4 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link } from 'react-router-dom';
@@ -8,8 +7,7 @@ import { Button } from '../components/ui/button';
 import { AppHeader } from '../components/AppHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { useAuth } from '../features/auth/AuthProvider';
-import { deleteAccount, updateSettings } from '../features/settings/api';
-import { queryKeys } from '../features/queryKeys';
+import { useDeleteAccountMutation, useUpdateSettingsMutation } from '../features/settings/queries';
 import { RetentionSetting } from '../features/settings/RetentionSetting';
 import { SessionList } from '../features/settings/SessionList';
 import { TimezoneSetting } from '../features/settings/TimezoneSetting';
@@ -21,8 +19,7 @@ const settingsSchema = z.object({
 type SettingsValues = z.infer<typeof settingsSchema>;
 
 export function SettingsPage() {
-  const { accessToken, user, logout, refresh } = useAuth();
-  const queryClient = useQueryClient();
+  const { isSignedIn, user, logout, refresh } = useAuth();
   const [message, setMessage] = useState<string | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
   const { handleSubmit, reset, setValue, watch, formState: { isSubmitting } } = useForm<SettingsValues>({
@@ -31,23 +28,8 @@ export function SettingsPage() {
   });
   const timezone = watch('timezone');
   const historyRetentionDays = watch('historyRetentionDays');
-  const updateSettingsMutation = useMutation({
-    mutationFn: (values: SettingsValues) => {
-      if (!accessToken) throw new Error('Bạn cần đăng nhập để lưu cài đặt.');
-      return updateSettings(accessToken, values);
-    },
-    onSuccess: async () => {
-      await refresh();
-      if (user) await queryClient.invalidateQueries({ queryKey: queryKeys.history(user.id) });
-    },
-  });
-  const deleteAccountMutation = useMutation({
-    mutationFn: () => {
-      if (!accessToken) throw new Error('Bạn cần đăng nhập để xóa tài khoản.');
-      return deleteAccount(accessToken);
-    },
-    onSuccess: () => logout(),
-  });
+  const updateSettingsMutation = useUpdateSettingsMutation(user?.id ?? 'anonymous', refresh);
+  const deleteAccountMutation = useDeleteAccountMutation(() => void logout());
 
   useEffect(() => {
     if (user) {
@@ -55,11 +37,9 @@ export function SettingsPage() {
     }
   }, [reset, user]);
 
-  if (!accessToken || !user) {
+  if (!isSignedIn || !user) {
     return <main className="mx-auto flex min-h-screen items-center justify-center px-5"><Button asChild><Link to="/login">Đăng nhập</Link></Button></main>;
   }
-
-  const token = accessToken;
 
   async function save(values: SettingsValues) {
     setMessage(null);
@@ -104,7 +84,7 @@ export function SettingsPage() {
         </Card>
         <Card>
           <CardHeader><CardTitle>Thiết bị đã đăng nhập</CardTitle></CardHeader>
-          <CardContent><SessionList accessToken={token} userId={user.id} /></CardContent>
+          <CardContent><SessionList userId={user.id} /></CardContent>
         </Card>
         {(message || serverError) && <p role={serverError ? 'alert' : 'status'} className={serverError ? 'text-sm text-red-700' : 'text-sm text-primary'}>{serverError ?? message}</p>}
         <Card className="border-red-200">

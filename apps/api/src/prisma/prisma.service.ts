@@ -1,10 +1,15 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
+import { AppConfig } from '../config/app-config';
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
+  constructor(private readonly config: AppConfig) {
+    super();
+  }
+
   async onModuleInit() {
-    if (process.env.NODE_ENV !== 'test') {
+    if (!this.config.isTest) {
       await this.$connect();
     }
   }

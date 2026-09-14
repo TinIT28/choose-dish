@@ -10,6 +10,10 @@ _Avoid_: Customer, member
 
 ## Dish catalog
 
+**Dish catalog**:
+The set of dishes a given reader can see right now: a user's own private dishes plus the shared dishes they have not personally excluded, and for an administrator the shared dishes alone. A removed dish leaves the catalog but keeps its row, so past selections still resolve.
+_Avoid_: Menu, dish list, dish pool
+
 **Dish**:
 A dish entry with a name, short description, and one required image.
 _Avoid_: Food, meal, recipe card

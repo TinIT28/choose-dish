@@ -16,7 +16,6 @@ describe('DishDialog', () => {
     const { rerender } = render(
       <DishDialog
         open
-        accessToken="access-token"
         onOpenChange={vi.fn()}
         onSaved={vi.fn()}
       />,
@@ -27,7 +26,6 @@ describe('DishDialog', () => {
     rerender(
       <DishDialog
         open
-        accessToken="access-token"
         initialDish={dish}
         onOpenChange={vi.fn()}
         onSaved={vi.fn()}

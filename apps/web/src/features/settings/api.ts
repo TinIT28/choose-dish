@@ -1,26 +1,20 @@
-import { apiRequest } from '../auth/api';
+import type { OkResponse, PublicUser, UserSessionView, UserSettingsInput } from '@choose-dish/contract';
+import { http } from '../../lib/http';
 
-export interface UserSession {
-  id: string;
-  userAgent: string | null;
-  ipAddress: string | null;
-  lastUsedAt: string;
-  expiresAt: string;
-  createdAt: string;
+export type { UserSessionView as UserSession, UserSettingsInput } from '@choose-dish/contract';
+
+export function updateSettings(input: UserSettingsInput) {
+  return http.patch<PublicUser>('/users/me/settings', input);
 }
 
-export function updateSettings(accessToken: string, input: { timezone: string; historyRetentionDays: number }) {
-  return apiRequest('/users/me/settings', { method: 'PATCH', body: JSON.stringify(input) }, accessToken);
+export function listSessions() {
+  return http.get<UserSessionView[]>('/users/me/sessions');
 }
 
-export function listSessions(accessToken: string) {
-  return apiRequest<UserSession[]>('/users/me/sessions', {}, accessToken);
+export function revokeSession(sessionId: string) {
+  return http.del(`/users/me/sessions/${sessionId}`);
 }
 
-export function revokeSession(accessToken: string, sessionId: string) {
-  return apiRequest(`/users/me/sessions/${sessionId}`, { method: 'DELETE' }, accessToken);
-}
-
-export function deleteAccount(accessToken: string) {
-  return apiRequest<{ ok: true }>('/users/me', { method: 'DELETE' }, accessToken);
+export function deleteAccount() {
+  return http.del<OkResponse>('/users/me');
 }

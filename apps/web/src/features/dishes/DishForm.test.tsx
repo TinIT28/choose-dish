@@ -6,7 +6,7 @@ import { DishForm } from './DishForm';
 describe('DishForm', () => {
   it('requires an image before saving a dish', async () => {
     const user = userEvent.setup();
-    render(<DishForm accessToken="access-token" onSaved={vi.fn()} />);
+    render(<DishForm onSaved={vi.fn()} />);
 
     await user.type(screen.getByLabelText('Tên món'), 'Cơm tấm');
     await user.type(screen.getByLabelText('Mô tả ngắn'), 'Sườn nướng');

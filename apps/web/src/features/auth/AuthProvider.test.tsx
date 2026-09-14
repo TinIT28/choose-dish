@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { StrictMode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AuthProvider, useAuth } from './AuthProvider';
-import { refreshRequest } from './api';
+import { refreshRequest, type PublicUser } from './api';
 
 vi.mock('./api', async () => {
   const actual = await vi.importActual<typeof import('./api')>('./api');
@@ -15,7 +15,7 @@ function SessionStatus() {
   return <p>{user ? `Đã đăng nhập: ${user.email}` : 'Đã đăng xuất'}</p>;
 }
 
-const refreshedUser = {
+const refreshedUser: PublicUser = {
   id: 'user-1',
   email: 'user@example.com',
   role: 'USER',

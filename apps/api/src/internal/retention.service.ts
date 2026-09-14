@@ -1,18 +1,21 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { SelectionCalendar } from '../selections/selection-calendar';
 
 @Injectable()
 export class RetentionService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly calendar: SelectionCalendar,
+  ) {}
 
   async cleanup(now = new Date()) {
-    const users = await this.prisma.user.findMany({ select: { id: true, historyRetentionDays: true } });
+    const calendars = await this.calendar.forEveryUser(now);
     let deleted = 0;
-    for (const user of users) {
-      const cutoff = new Date(now.getTime() - user.historyRetentionDays * 24 * 60 * 60 * 1000);
-      const result = await this.prisma.selection.deleteMany({ where: { userId: user.id, selectedAt: { lt: cutoff } } });
+    for (const { userId, retentionCutoff } of calendars) {
+      const result = await this.prisma.selection.deleteMany({ where: { userId, localDate: { lt: retentionCutoff } } });
       deleted += result.count;
     }
-    return { deleted, users: users.length };
+    return { deleted, users: calendars.length };
   }
 }

@@ -1,16 +1,10 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent } from '../../components/ui/card';
-import { queryKeys } from '../queryKeys';
-import { listSessions, revokeSession } from './api';
+import { useRevokeSessionMutation, useSessionsQuery } from './queries';
 
-export function SessionList({ accessToken, userId }: { accessToken: string; userId: string }) {
-  const queryClient = useQueryClient();
-  const sessionsQuery = useQuery({ queryKey: queryKeys.sessions(userId), queryFn: () => listSessions(accessToken) });
-  const revokeMutation = useMutation({
-    mutationFn: (sessionId: string) => revokeSession(accessToken, sessionId),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: queryKeys.sessions(userId) }),
-  });
+export function SessionList({ userId }: { userId: string }) {
+  const sessionsQuery = useSessionsQuery(userId);
+  const revokeMutation = useRevokeSessionMutation(userId);
 
   return (
     <div className="space-y-3">

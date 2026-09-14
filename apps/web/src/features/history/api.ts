@@ -1,19 +1,8 @@
-import { apiRequest } from '../auth/api';
-import type { MealPeriod } from '../selections/api';
+import type { HistoryGroupView } from '@choose-dish/contract';
+import { http } from '../../lib/http';
 
-export interface HistorySelection {
-  id: string;
-  localDate: string;
-  mealPeriod: MealPeriod;
-  dishNameSnapshot: string;
-  selectedAt: string;
-}
+export type { HistoryGroupView as HistoryGroup, HistorySelectionView as HistorySelection } from '@choose-dish/contract';
 
-export interface HistoryGroup {
-  localDate: string;
-  selections: HistorySelection[];
-}
-
-export function listHistory(accessToken: string) {
-  return apiRequest<HistoryGroup[]>('/history', {}, accessToken);
+export function listHistory() {
+  return http.get<HistoryGroupView[]>('/history');
 }

@@ -1,41 +1,31 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException, Optional } from '@nestjs/common';
-import { DishScope, Role } from '@prisma/client';
+import { Injectable } from '@nestjs/common';
+import type { AdminUserView, CreateDishInput, UpdateDishInput } from '@choose-dish/contract';
+import { DishScope } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { PrismaService } from '../prisma/prisma.service';
-import type { AuthUser } from '../auth/auth.types';
-import type { CreateDishInput, UpdateDishInput } from '../dishes/dishes.types';
-import { CloudinaryService } from '../storage/cloudinary.service';
+import { DishCatalog, toDishView } from '../dishes/dish-catalog';
 
 @Injectable()
 export class AdminService {
   constructor(
     private readonly prisma: PrismaService,
-    @Optional() private readonly cloudinary?: CloudinaryService,
+    private readonly catalog: DishCatalog,
   ) {}
 
-  async assertAdmin(user: Pick<AuthUser, 'role'>) {
-    if (user.role !== Role.ADMIN && user.role !== 'ADMIN') {
-      throw new ForbiddenException('Chỉ admin mới có quyền thực hiện thao tác này');
-    }
-  }
-
   listShared() {
-    return this.prisma.dish.findMany({
-      where: { scope: DishScope.SHARED, isActive: true, deletedAt: null },
-      orderBy: { createdAt: 'desc' },
-    });
+    return this.catalog.listShared();
   }
 
-  listUsers() {
+  listUsers(): Promise<AdminUserView[]> {
     return this.prisma.user.findMany({
       select: { id: true, email: true, role: true },
       orderBy: { createdAt: 'asc' },
     });
   }
 
-  createShared(input: CreateDishInput) {
-    this.assertManagedImage(input.imageUrl);
-    return this.prisma.dish.create({
+  async createShared(input: CreateDishInput) {
+    this.catalog.assertUsableImage(input);
+    const created = await this.prisma.dish.create({
       data: {
         scope: DishScope.SHARED,
         ownerId: null,
@@ -45,12 +35,18 @@ export class AdminService {
         cloudinaryPublicId: input.cloudinaryPublicId.trim(),
       },
     });
+    return toDishView(created);
   }
 
   async updateShared(dishId: string, input: UpdateDishInput) {
-    await this.requireShared(dishId);
-    if (input.imageUrl) this.assertManagedImage(input.imageUrl);
-    return this.prisma.dish.update({
+    const dish = await this.catalog.requireShared(dishId);
+    if (input.imageUrl !== undefined || input.cloudinaryPublicId !== undefined) {
+      this.catalog.assertUsableImage({
+        imageUrl: input.imageUrl ?? dish.imageUrl,
+        cloudinaryPublicId: input.cloudinaryPublicId ?? dish.cloudinaryPublicId,
+      });
+    }
+    const updated = await this.prisma.dish.update({
       where: { id: dishId },
       data: {
         ...(input.name === undefined ? {} : { name: input.name.trim() }),
@@ -59,29 +55,16 @@ export class AdminService {
         ...(input.cloudinaryPublicId === undefined ? {} : { cloudinaryPublicId: input.cloudinaryPublicId.trim() }),
       },
     });
+    return toDishView(updated);
   }
 
   async deleteShared(dishId: string) {
-    await this.requireShared(dishId);
-    return this.prisma.dish.update({ where: { id: dishId }, data: { isActive: false, deletedAt: new Date() } });
+    await this.catalog.requireShared(dishId);
+    return this.catalog.remove(dishId);
   }
 
   async resetPassword(userId: string, password: string) {
     const passwordHash = await argon2.hash(password, { type: argon2.argon2id });
     return this.prisma.user.update({ where: { id: userId }, data: { passwordHash } });
-  }
-
-  private async requireShared(dishId: string) {
-    const dish = await this.prisma.dish.findUnique({ where: { id: dishId } });
-    if (!dish || dish.scope !== DishScope.SHARED || !dish.isActive || dish.deletedAt) {
-      throw new NotFoundException('Không tìm thấy món dùng chung');
-    }
-    return dish;
-  }
-
-  private assertManagedImage(imageUrl: string) {
-    if (this.cloudinary && !this.cloudinary.isManagedImageUrl(imageUrl)) {
-      throw new BadRequestException('Ảnh món ăn phải nằm trên Cloudinary đã cấu hình');
-    }
   }
 }

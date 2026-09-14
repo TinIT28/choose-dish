@@ -1,15 +1,7 @@
-import { apiRequest } from '../auth/api';
+import type { MealPeriod, SelectionView } from '@choose-dish/contract';
+import { http } from '../../lib/http';
 
-export type MealPeriod = 'BREAKFAST' | 'LUNCH' | 'DINNER';
-
-export interface Selection {
-  id: string;
-  localDate: string;
-  mealPeriod: MealPeriod;
-  dishId: string;
-  dishNameSnapshot: string;
-  selectedAt: string;
-}
+export type { MealPeriod, SelectionView as Selection } from '@choose-dish/contract';
 
 export const mealPeriodLabels: Record<MealPeriod, { title: string; icon: string; time: string; description: string }> = {
   BREAKFAST: { title: 'Bữa sáng', icon: '☀️', time: '06:00 – 10:30', description: 'Khởi động nhẹ nhàng' },
@@ -17,13 +9,10 @@ export const mealPeriodLabels: Record<MealPeriod, { title: string; icon: string;
   DINNER: { title: 'Bữa tối', icon: '🌙', time: '17:00 – 22:00', description: 'Khép lại một ngày ngon miệng' },
 };
 
-export function listTodaySelections(accessToken: string) {
-  return apiRequest<Selection[]>('/selections/today', {}, accessToken);
+export function listTodaySelections() {
+  return http.get<SelectionView[]>('/selections/today');
 }
 
-export function randomSelection(accessToken: string, mealPeriod: MealPeriod) {
-  return apiRequest<Selection>('/selections/random', {
-    method: 'POST',
-    body: JSON.stringify({ mealPeriod }),
-  }, accessToken);
+export function randomSelection(mealPeriod: MealPeriod) {
+  return http.post<SelectionView>('/selections/random', { mealPeriod });
 }

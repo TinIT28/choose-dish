@@ -1,33 +1,42 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import type { PublicUser, UserSessionView, UserSettingsInput } from '@choose-dish/contract';
 import { Role } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { isValidTimezone } from '../selections/local-date';
+import { toPublicUser } from './user-view';
 
 @Injectable()
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
-  findById(id: string) {
-    return this.prisma.user.findUnique({ where: { id } });
+  async findById(id: string): Promise<PublicUser | null> {
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    return user ? toPublicUser(user) : null;
   }
 
-  async updateSettings(userId: string, settings: { timezone: string; historyRetentionDays: number }) {
-    try {
-      new Intl.DateTimeFormat('en-US', { timeZone: settings.timezone }).format();
-    } catch {
+  async updateSettings(userId: string, settings: UserSettingsInput): Promise<PublicUser> {
+    if (!isValidTimezone(settings.timezone)) {
       throw new BadRequestException('Múi giờ IANA không hợp lệ');
     }
     if (![7, 30, 90, 365].includes(settings.historyRetentionDays)) {
       throw new BadRequestException('Thời gian lưu lịch sử phải là 7, 30, 90 hoặc 365 ngày');
     }
-    return this.prisma.user.update({ where: { id: userId }, data: settings });
+    const updated = await this.prisma.user.update({ where: { id: userId }, data: settings });
+    return toPublicUser(updated);
   }
 
-  listSessions(userId: string) {
-    return this.prisma.session.findMany({
+  async listSessions(userId: string): Promise<UserSessionView[]> {
+    const sessions = await this.prisma.session.findMany({
       where: { userId, revokedAt: null },
       select: { id: true, userAgent: true, ipAddress: true, lastUsedAt: true, expiresAt: true, createdAt: true },
       orderBy: { lastUsedAt: 'desc' },
     });
+    return sessions.map((session) => ({
+      ...session,
+      lastUsedAt: session.lastUsedAt.toISOString(),
+      expiresAt: session.expiresAt.toISOString(),
+      createdAt: session.createdAt.toISOString(),
+    }));
   }
 
   revokeSession(userId: string, sessionId: string) {

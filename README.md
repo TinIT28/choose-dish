@@ -6,6 +6,7 @@
 
 - Web: React + Rsbuild + TypeScript, Tailwind CSS, shadcn/ui primitives, React Hook Form + Zod, TanStack Query.
 - API: NestJS + Prisma.
+- Contract: `packages/contract` khai báo kiểu của JSON hai app trao đổi. Package chỉ chứa type, import bằng `import type` nên không vào bundle và không cần thêm bước build nào cho hai Vercel project.
 - Data: PostgreSQL trên Neon.
 - Image: upload trực tiếp lên Cloudinary bằng signed parameters; database chỉ lưu URL và public ID.
 

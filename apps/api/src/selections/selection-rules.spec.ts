@@ -1,23 +1,28 @@
 import { describe, expect, it } from 'vitest';
-import { getLocalDate, getRecentLocalDates, selectCandidateDish } from './selection-rules';
+import { recentLocalDates } from './local-date';
+import { selectCandidateDish } from './selection-rules';
+
+const window = recentLocalDates('2026-09-13', 7);
 
 describe('selection rules', () => {
-  it('uses the user timezone when deriving the local date and seven-day window', () => {
-    const instant = new Date('2026-09-13T16:30:00.000Z');
+  it('skips the dishes chosen inside the no-repeat window', () => {
+    const dishes = [{ id: 'a' }, { id: 'b' }, { id: 'c' }];
+    const recentSelections = [
+      { localDate: '2026-09-13', dishId: 'a' },
+      { localDate: '2026-09-12', dishId: 'b' },
+    ];
 
-    expect(getLocalDate(instant, 'Asia/Ho_Chi_Minh')).toBe('2026-09-13');
-    expect(getRecentLocalDates('2026-09-13')).toEqual([
-      '2026-09-13',
-      '2026-09-12',
-      '2026-09-11',
-      '2026-09-10',
-      '2026-09-09',
-      '2026-09-08',
-      '2026-09-07',
-    ]);
+    expect(selectCandidateDish(dishes, recentSelections, window, () => 0)).toBe('c');
   });
 
-  it('excludes recent dishes and relaxes the oldest date before failing', () => {
+  it('ignores selections older than the window', () => {
+    const dishes = [{ id: 'a' }];
+    const recentSelections = [{ localDate: '2026-08-01', dishId: 'a' }];
+
+    expect(selectCandidateDish(dishes, recentSelections, window, () => 0)).toBe('a');
+  });
+
+  it('relaxes the oldest date first when every dish is recent', () => {
     const dishes = [{ id: 'a' }, { id: 'b' }, { id: 'c' }];
     const recentSelections = [
       { localDate: '2026-09-13', dishId: 'a' },
@@ -25,10 +30,10 @@ describe('selection rules', () => {
       { localDate: '2026-09-07', dishId: 'c' },
     ];
 
-    expect(selectCandidateDish(dishes, recentSelections, '2026-09-13', () => 0)).toBe('c');
+    expect(selectCandidateDish(dishes, recentSelections, window, () => 0)).toBe('c');
   });
 
   it('throws a typed error when the accessible catalog is empty', () => {
-    expect(() => selectCandidateDish([], [], '2026-09-13', () => 0)).toThrowError('NO_AVAILABLE_DISH');
+    expect(() => selectCandidateDish([], [], window, () => 0)).toThrowError('NO_AVAILABLE_DISH');
   });
 });

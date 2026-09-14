@@ -13,45 +13,6 @@ import { mealPeriodLabels, type MealPeriod, type Selection } from './api';
 import { MealPeriodIcon } from './MealPeriodCard';
 import type { DishCandidate } from './availableDishes';
 
-const mealPeriods: MealPeriod[] = ['BREAKFAST', 'LUNCH', 'DINNER'];
-const mealWindows = [
-  { start: 360, end: 630 },
-  { start: 630, end: 870 },
-  { start: 1020, end: 1320 },
-];
-
-function getMinutesInTimezone(date: Date, timezone: string) {
-  const parts = new Intl.DateTimeFormat('en-GB', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-    timeZone: timezone,
-  }).formatToParts(date);
-  const hour = Number(parts.find((part) => part.type === 'hour')?.value ?? 0);
-  const minute = Number(parts.find((part) => part.type === 'minute')?.value ?? 0);
-  return Math.min(hour, 23) * 60 + minute;
-}
-
-export function getCurrentMealPeriod(now: Date, timezone: string): MealPeriod {
-  const currentMinutes = getMinutesInTimezone(now, timezone);
-  if (currentMinutes < mealWindows[0].start || currentMinutes >= mealWindows[2].end) return 'BREAKFAST';
-  if (currentMinutes < mealWindows[0].end) return 'BREAKFAST';
-  if (currentMinutes < mealWindows[1].end) return 'LUNCH';
-  return 'DINNER';
-}
-
-export function getNextMealPeriod(now: Date, selections: Selection[], timezone: string): MealPeriod {
-  const selectedPeriods = new Set(selections.map((selection) => selection.mealPeriod));
-  const activeIndex = mealPeriods.indexOf(getCurrentMealPeriod(now, timezone));
-
-  for (let offset = 0; offset < mealPeriods.length; offset += 1) {
-    const period = mealPeriods[(activeIndex + offset) % mealPeriods.length];
-    if (!selectedPeriods.has(period)) return period;
-  }
-
-  return mealPeriods[activeIndex];
-}
-
 function formatSelectionTime(selectedAt: string, timezone: string) {
   return new Intl.DateTimeFormat('vi-VN', {
     hour: '2-digit',

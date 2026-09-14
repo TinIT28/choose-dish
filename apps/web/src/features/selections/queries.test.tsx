@@ -30,7 +30,7 @@ describe('selection mutations', () => {
     const queryClient = new QueryClient();
     const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries');
     const { result } = renderHook(
-      () => useRandomSelectionMutation('access-token', 'user-1'),
+      () => useRandomSelectionMutation('user-1'),
       { wrapper: createWrapper(queryClient) },
     );
 
